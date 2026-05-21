@@ -1,0 +1,18 @@
+{
+  "asset": "VARA",
+  "providerLookup": {
+    "amount": "10000000000",
+    "note": "cents-level micropayment target"
+  },
+  "subscriptions": {
+    "free": "0",
+    "pulse": "25000000000",
+    "pro": "75000000000",
+    "sponsor": "225000000000"
+  },
+  "referralFeeBps": {
+    "default": 250,
+    "max": 2000
+  }
+}
+

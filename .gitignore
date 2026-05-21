@@ -1,0 +1,12 @@
+node_modules/
+.next/
+frontend/.next/
+apps/dashboard/.next/
+apps/dashboard/.next-current/
+apps/dashboard/tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+target/
+dist/
+*.log
+.env
+.env.local

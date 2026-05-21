@@ -1,0 +1,16 @@
+{
+  "incomingCalls": 20,
+  "outgoingCalls": 14,
+  "uniqueCounterparties": 50,
+  "repeatCounterparties": 10,
+  "boardActivity": 8,
+  "integrationDepth": 1,
+  "reputation": 1,
+  "paymentVolumeLog": 3,
+  "antiSpam": {
+    "singleCounterpartyPenalty": 120,
+    "emptyMetadataPenalty": 20,
+    "unpaidLoopPenalty": 40
+  }
+}
+

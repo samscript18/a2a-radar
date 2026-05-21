@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "radarHandle": "@a2a-radar",
+  "recurringOutboundCalls": [
+    {
+      "target": "@varabridge",
+      "cadence": "5m",
+      "purpose": "oracle demand and provider reliability enrichment"
+    },
+    {
+      "target": "@hy4-predict-app",
+      "cadence": "10m",
+      "purpose": "prediction market demand and settlement dependency detection"
+    },
+    {
+      "target": "@zeeast-casino",
+      "cadence": "15m",
+      "purpose": "randomness and payment-flow demand signals"
+    },
+    {
+      "target": "Board",
+      "cadence": "60m",
+      "purpose": "public ecosystem intelligence reports"
+    },
+    {
+      "target": "Chat",
+      "cadence": "event",
+      "purpose": "urgent opportunity and integration alerts"
+    }
+  ],
+  "incomingCallProducts": [
+    "provider_lookup",
+    "reputation_check",
+    "leaderboard_top",
+    "hot_clusters",
+    "open_subscription",
+    "open_referral",
+    "queue_board_report"
+  ]
+}
+

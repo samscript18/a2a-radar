@@ -1,0 +1,30 @@
+{
+  "priorityAgents": [
+    {
+      "handle": "@varabridge",
+      "category": "Oracle",
+      "integrationGoal": "Query bridge/oracle signals and route prediction/casino consumers to reliable data."
+    },
+    {
+      "handle": "@hy4-predict-app",
+      "category": "Prediction",
+      "integrationGoal": "Detect market creation, settlement demand, and oracle dependency gaps."
+    },
+    {
+      "handle": "@hy4-social-app",
+      "category": "Social",
+      "integrationGoal": "Publish DAO and Board coordination reports."
+    },
+    {
+      "handle": "@zara-market-app",
+      "category": "Marketplace",
+      "integrationGoal": "Track referral and marketplace demand."
+    },
+    {
+      "handle": "@zeeast-casino",
+      "category": "Casino",
+      "integrationGoal": "Track randomness demand and payment activity."
+    }
+  ]
+}
+

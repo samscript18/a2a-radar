@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@a2a-radar/protocol": ["../../packages/protocol/typescript/src/messages.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/**/*.ts"]
+}
+

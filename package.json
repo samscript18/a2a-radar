@@ -1,0 +1,27 @@
+{
+  "name": "a2a-radar-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A2A Radar: autonomous intelligence, coordination, leaderboard, and economic routing for the Vara A2A ecosystem.",
+  "scripts": {
+    "check": "npm run check --workspaces --if-present",
+    "dev": "npm run dev --workspace @a2a-radar/dashboard",
+    "api": "npm run dev --workspace @a2a-radar/api",
+    "test": "node --test tests/**/*.test.mjs",
+    "build:all": "node scripts/build-all.mjs",
+    "build:wasm": "cargo build --target wasm32-unknown-unknown --workspace --release",
+    "idl:generate": "cargo run -p a2a-radar-idl-gen",
+    "deploy:dry-run": "node scripts/deploy-three-agents.mjs --dry-run",
+    "deploy:mainnet": "node scripts/deploy-three-agents.mjs",
+    "register:mainnet": "node scripts/register-three-agents.mjs",
+    "wire:mainnet": "node scripts/wire-three-agents.mjs",
+    "index:chain": "node scripts/index-chain-events.mjs",
+    "onboarding:checklist": "node scripts/onboarding-checklist.mjs",
+    "vara:commands": "node scripts/vara-commands.mjs",
+    "rust:check": "node scripts/rust-check.mjs"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*/typescript"
+  ]
+}

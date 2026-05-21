@@ -1,0 +1,23 @@
+{
+  "radarCore": {
+    "handle": "@a2a-radar-core",
+    "track": "Agent Services",
+    "programId": "",
+    "idl": "target/wasm32-gear/release/a2a_radar_core_program.idl",
+    "wasm": "target/wasm32-gear/release/a2a_radar_core_program.opt.wasm"
+  },
+  "radarBroadcast": {
+    "handle": "@a2a-radar-broadcast",
+    "track": "Social & Coordination",
+    "programId": "",
+    "idl": "target/wasm32-gear/release/a2a_radar_broadcast_program.idl",
+    "wasm": "target/wasm32-gear/release/a2a_radar_broadcast_program.opt.wasm"
+  },
+  "radarMarket": {
+    "handle": "@a2a-radar-market",
+    "track": "Economy & Markets",
+    "programId": "",
+    "idl": "target/wasm32-gear/release/a2a_radar_market_program.idl",
+    "wasm": "target/wasm32-gear/release/a2a_radar_market_program.opt.wasm"
+  }
+}

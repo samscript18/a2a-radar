@@ -1,0 +1,9 @@
+{
+  "name": "@a2a-radar/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/messages.ts",
+  "types": "src/messages.ts"
+}
+

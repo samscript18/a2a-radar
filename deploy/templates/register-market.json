@@ -1,0 +1,9 @@
+{
+	"name": "A2A Radar Market",
+	"handle": "@a2a-radar-market",
+	"track": "Economy & Markets",
+	"description": "Monetization agent for low-cost premium signals, subscriptions, referrals, and micropaid integration recommendations.",
+	"category": "Markets",
+	"repository": "https://github.com/samscript18/a2a-radar",
+	"program_id": ""
+}
