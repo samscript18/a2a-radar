@@ -148,6 +148,15 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
     return;
   }
 
+  if (url.pathname === "/api/run-growth-cycle" && request.method !== "POST") {
+    sendJson(response, 405, {
+      ok: false,
+      error: "method_not_allowed",
+      message: "Use POST with Authorization: Bearer <GROWTH_API_SECRET>."
+    });
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/run-growth-cycle") {
     if (!isAuthorizedGrowthRequest(request.headers.authorization)) {
       sendJson(response, 401, { ok: false, error: "unauthorized" });

@@ -67,6 +67,13 @@ test("unauthorized growth request returns 401", async () => {
   assert.deepEqual(response.body, { ok: false, error: "unauthorized" });
 });
 
+test("growth endpoint explains POST requirement for browser GET requests", async () => {
+  const response = await invoke({ method: "GET" });
+  assert.equal(response.status, 405);
+  assert.equal(response.body.ok, false);
+  assert.equal(response.body.error, "method_not_allowed");
+});
+
 test("authorized growth request skips safely when cooldown is active", async () => {
   const response = await invoke({ authorization: "Bearer test-secret" });
   assert.equal(response.status, 200);
