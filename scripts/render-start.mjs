@@ -74,6 +74,7 @@ function tryWalletImport(args, input) {
 		return true;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
+		console.error(`Wallet import failed: ${message}`);
 		if (isImportArgError(message)) {
 			return false;
 		}
@@ -122,6 +123,8 @@ if (!existsSync("package.json")) {
 	throw new Error("render-start must be run from the a2a-radar repo root.");
 }
 
+console.log(`Wallet binary: ${usePatchedWallet ? patchedWalletPath : "vara-wallet"}`);
+
 const walletsBefore = getWalletList();
 console.log(`Wallet exists: ${walletExists(walletsBefore)}`);
 
@@ -138,6 +141,7 @@ if (!walletExists(walletsBefore)) {
 
 	if (importConfig.kind === "keyring") {
 		const { support } = importConfig;
+		console.log(`Keyring path present: ${existsSync(importConfig.keyringPath)}`);
 		if (!support.jsonFlag && !support.stdinFlag) {
 			throw new Error("wallet import does not support JSON keystore input in this vara-wallet build.");
 		}
