@@ -51,19 +51,27 @@ export type DashboardSnapshot = RadarSnapshot & {
 		blockNumber: number;
 		observedAtMs: number;
 	}>;
-	latestSubscriptions?: Array<{
+  latestSubscriptions?: Array<{
 		id: string;
 		tier: string;
 		amount: { amount: string; asset: "VARA" };
 		observedAtMs: number;
 		source: string;
 	}>;
-	growthTimeline?: Array<{
+  growthTimeline?: Array<{
 		kind: string;
 		title: string;
 		observedAtMs: number;
-		metadata: string;
-	}>;
+    metadata: string;
+  }>;
+  externalIntegrations?: Array<{
+    handle: string;
+    programId: string;
+    category: string;
+    summary: string;
+    observedAt: string;
+    receipts: Record<string, unknown>;
+  }>;
 };
 
 export async function getRadarSnapshot(): Promise<DashboardSnapshot> {

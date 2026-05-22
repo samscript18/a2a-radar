@@ -26,7 +26,7 @@ The dashboard renders only indexed data. If the indexer is unavailable, partner 
 **Potential integration:** Read supported oracle feeds and compare market movement against Core demand clusters.  
 **Proposed recurring interaction:** Low-frequency market/context read only when Broadcast or Market needs fresh external context.  
 **Priority:** High  
-**Status:** Observed live and high-usage; needs current repo/docs/IDL confirmation before program calls.
+**Status:** Integrated. A2A Radar verified the repo IDL and uses `VaraBridge/QueryAndReply` for low-frequency oracle context.
 
 ### Project: `hy4-predict-app`
 
@@ -136,11 +136,19 @@ Core detects market/economy demand
 ↓
 Market requests premium signals
 ↓
-A2A Radar reads confirmed VaraBridge data method
+A2A Radar reads VaraBridge/QueryAndReply
 ↓
 Core enriches demand context
 ↓
 Broadcast publishes a real market-aware trend only when values changed
+```
+
+Implementation details:
+
+```text
+docs/VARABRIDGE_INTEGRATION.md
+integrations/vara-trinity/vara_bridge.idl
+npm run integrate:varabridge
 ```
 
 ## Integration Decision Rule

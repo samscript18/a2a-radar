@@ -43,6 +43,12 @@ const agents = {
   market: { idl: "artifacts/idl/a2a_radar_market_program.idl" }
 } as const;
 
+const VARABRIDGE = {
+  programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+  idl: "integrations/vara-trinity/vara_bridge.idl",
+  query: { query_type: "all", symbol: null, keys: null }
+} as const;
+
 function repoRoot(options: GrowthCycleOptions = {}) {
   return resolve(options.repoRoot ?? process.cwd());
 }
@@ -217,6 +223,24 @@ function treasuryDelta(receipts: JsonObject) {
   return total.toString();
 }
 
+function summarizeBridgeReply(reply: JsonObject) {
+  const container = (reply.value as JsonObject | undefined) ?? reply;
+  const prices = Array.isArray(container.prices) ? container.prices as JsonObject[] : [];
+  const markets = Array.isArray(container.markets) ? container.markets as JsonObject[] : [];
+  const news = Array.isArray(container.news) ? container.news as JsonObject[] : [];
+  const gas = container.gas as JsonObject | undefined;
+  const datetime = container.datetime as JsonObject | undefined;
+  const btc = prices.find((entry) => entry.key === "BTC")?.value as JsonObject | undefined;
+  const eth = prices.find((entry) => entry.key === "ETH")?.value as JsonObject | undefined;
+  return [
+    `VaraBridge oracle read: ${prices.length} prices, ${markets.length} markets, ${news.length} news items`,
+    btc ? `BTC ${btc.price_usd_micro} microUSD (${btc.change_24h_bps} bps)` : undefined,
+    eth ? `ETH ${eth.price_usd_micro} microUSD (${eth.change_24h_bps} bps)` : undefined,
+    gas ? `gas ${gas.current_fee_micro} micro` : undefined,
+    datetime ? `time ${datetime.utc_string}` : undefined
+  ].filter(Boolean).join("; ");
+}
+
 export function isAuthorizedGrowthRequest(authHeader: string | undefined, secret = process.env.GROWTH_API_SECRET) {
   if (!secret || !authHeader?.startsWith("Bearer ")) return false;
   const token = authHeader.slice("Bearer ".length);
@@ -242,6 +266,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
 
   const economicIntervalMs = intervalMs("GROWTH_ECONOMIC_INTERVAL_MS", 6 * 60 * 60 * 1000);
   const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", 60 * 60 * 1000);
+  const externalIntegrationIntervalMs = intervalMs("GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS", 2 * 60 * 60 * 1000);
   const paidRecommendationValue = process.env.PAID_RECOMMENDATION_VALUE ?? "0.01";
   const subscriptionValue = process.env.PULSE_VALUE ?? "0.025";
   const paymentRaw = process.env.GROWTH_PAYMENT_RAW ?? "10000000000";
@@ -298,6 +323,30 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     ["Payment", ids.market, "Marketplace", { amount: paymentRaw, asset: "VARA" }, 3, "market-v2 paid integration recommendation purchase"],
     agents.core.idl
   );
+
+  if (due(state, "lastVaraBridgeAt", externalIntegrationIntervalMs, options)) {
+    const bridgeReceipt = call(root, VARABRIDGE.programId, "VaraBridge/QueryAndReply", [VARABRIDGE.query], VARABRIDGE.idl);
+    const bridgeReply = unwrap(bridgeReceipt) as JsonObject;
+    const bridgeSummary = summarizeBridgeReply(bridgeReply);
+    receipts.varaBridgeQuery = bridgeReceipt;
+    receipts.coreVaraBridgeIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", VARABRIDGE.programId, "Oracle", null, 3, bridgeSummary],
+      agents.core.idl
+    );
+    receipts.broadcastVaraBridgeAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [VARABRIDGE.programId, bridgeSummary],
+      agents.broadcast.idl
+    );
+    state.lastVaraBridgeAt = now(options);
+  } else {
+    receipts.varaBridgeQuery = { skipped: true, reason: "external integration interval not due" };
+  }
 
   let subscriptions = 0;
   if (due(state, "lastEconomicAt", economicIntervalMs, options)) {

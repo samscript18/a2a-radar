@@ -30,6 +30,7 @@
 		"growth:once": "node scripts/autonomous-growth-loop.mjs --once",
 		"growth:daemon": "node scripts/autonomous-growth-loop.mjs",
 		"growth:api:test": "node scripts/test-growth-api.mjs",
+		"integrate:varabridge": "node scripts/integrate-varabridge.mjs",
 		"social:copy": "node scripts/generate-social-copy.mjs",
 		"validate:calls": "node scripts/validate-call-encoding.mjs",
 		"index:chain": "node scripts/index-chain-events.mjs",

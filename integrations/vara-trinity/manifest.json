@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/Oltking/vara-trinity",
+  "handle": "varabridge",
+  "programId": "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+  "idlPath": "integrations/vara-trinity/vara_bridge.idl",
+  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_bridge.idl",
+  "track": "Services",
+  "service": "VaraBridge",
+  "selectedMethod": "VaraBridge/QueryAndReply",
+  "selectedQuery": {
+    "query_type": "all",
+    "symbol": null,
+    "keys": null
+  },
+  "paymentRequired": false,
+  "integrationPurpose": "Read live oracle context and report a real external oracle signal into A2A Radar Core."
+}

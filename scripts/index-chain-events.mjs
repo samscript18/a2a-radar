@@ -310,7 +310,9 @@ const treasury = BigInt(unwrap(runJson("vara-wallet", [
 
 const smoke = readJson("artifacts/deploy/live-smoke-results.json", {});
 const growthReceipts = readJson("artifacts/deploy/growth-loop-receipts.json", []);
+const varaBridgeReceipts = readJson("artifacts/deploy/varabridge-integration-receipts.json", []);
 const growth = growthReceipts.at(-1)?.receipts ?? {};
+const varaBridge = varaBridgeReceipts.at(-1);
 console.log("Reading Vara Agent Network indexer");
 const ecosystemIndex = await readEcosystemIndex();
 const activity = [
@@ -325,7 +327,13 @@ const activity = [
   txActivity("OutgoingCall", growth.corePremiumSignals, "Growth loop: Market requested premium Core signals."),
   txActivity("Payment", growth.marketPaidRecommendation, "Growth loop: Market paid for an integration recommendation."),
   txActivity("Payment", growth.corePurchaseReport, "Growth loop: Market reported the purchase back to Core."),
-  txActivity("BoardPost", growth.boardAnnouncement, "Growth loop: Broadcast posted a public Board announcement.")
+  txActivity("BoardPost", growth.boardAnnouncement, "Growth loop: Broadcast posted a public Board announcement."),
+  txActivity("OutgoingCall", growth.varaBridgeQuery, "Growth loop: A2A Radar queried VaraBridge oracle data."),
+  txActivity("DemandRequest", growth.coreVaraBridgeIngest, "Growth loop: Core ingested a real VaraBridge oracle signal."),
+  txActivity("IntegrationPact", growth.broadcastVaraBridgeAnnounce, "Growth loop: Broadcast announced VaraBridge integration context."),
+  txActivity("OutgoingCall", varaBridge?.receipts?.varaBridgeQuery, "A2A Radar queried VaraBridge oracle data."),
+  txActivity("DemandRequest", varaBridge?.receipts?.coreIngest, "Core ingested a real VaraBridge oracle signal."),
+  txActivity("IntegrationPact", varaBridge?.receipts?.broadcastAnnounce, "Broadcast announced VaraBridge integration context.")
 ].filter(Boolean);
 
 const latestSubscriptions = [
@@ -366,7 +374,13 @@ const snapshot = {
       growth.broadcastConsumeReport,
       growth.corePremiumSignals,
       growth.marketPackageSignals,
-      growth.corePurchaseReport
+      growth.corePurchaseReport,
+      growth.varaBridgeQuery,
+      growth.coreVaraBridgeIngest,
+      growth.broadcastVaraBridgeAnnounce,
+      varaBridge?.receipts?.varaBridgeQuery,
+      varaBridge?.receipts?.coreIngest,
+      varaBridge?.receipts?.broadcastAnnounce
     ].filter((row) => row?.messageId).length,
     incomingCallTargets: Number(counts?.[0] ?? 0)
   },
@@ -405,14 +419,26 @@ const snapshot = {
     { from: "Core", to: "Market", purpose: "premium_signals_for_market", observedAtMs: Date.now() },
     { from: "Market", to: "Core", purpose: "paid_signal_packaging", observedAtMs: Date.now() },
     { from: "Broadcast", to: "Core", purpose: "demand_feedback", observedAtMs: Date.now() },
-    { from: "Market", to: "Core", purpose: "purchase_report", observedAtMs: Date.now() }
-  ],
+    { from: "Market", to: "Core", purpose: "purchase_report", observedAtMs: Date.now() },
+    varaBridge ? { from: "Core", to: "Broadcast", purpose: "varabridge_oracle_context", observedAtMs: Date.now() } : undefined
+  ].filter(Boolean),
+  externalIntegrations: [
+    varaBridge ? {
+      handle: "varabridge",
+      programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+      category: "Oracle",
+      summary: varaBridge.summary,
+      observedAt: varaBridge.observedAt,
+      receipts: varaBridge.receipts
+    } : undefined
+  ].filter(Boolean),
   raw: {
     programIds: ids,
     coreCounts: counts,
     marketTreasuryRaw: treasury.toString(),
     smokeReceipts: smoke,
-    latestGrowthReceipts: growth
+    latestGrowthReceipts: growth,
+    latestVaraBridgeIntegration: varaBridge
   }
 };
 
