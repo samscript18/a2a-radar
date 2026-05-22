@@ -120,7 +120,7 @@ function importArgsFromEnv() {
 }
 
 if (!existsSync("package.json")) {
-	throw new Error("render-start must be run from the a2a-radar repo root.");
+	throw new Error("render-import-wallet must be run from the a2a-radar repo root.");
 }
 
 console.log(`Wallet binary: ${usePatchedWallet ? patchedWalletPath : "vara-wallet"}`);
@@ -136,7 +136,9 @@ if (!walletExists(walletsBefore)) {
 
 	const encryptionArgs = passphrase ? ["--passphrase", passphrase] : [];
 	const nameArgs = importConfig.support?.supportsName ? ["--name", walletName] : [];
-	const supportDetails = importConfig.support ? `jsonFlag=${importConfig.support.jsonFlag ?? "none"}, stdinFlag=${importConfig.support.stdinFlag ?? "none"}, supportsName=${importConfig.support.supportsName}` : "unknown";
+	const supportDetails = importConfig.support
+		? `jsonFlag=${importConfig.support.jsonFlag ?? "none"}, stdinFlag=${importConfig.support.stdinFlag ?? "none"}, supportsName=${importConfig.support.supportsName}`
+		: "unknown";
 	console.log(`Wallet import support: ${supportDetails}`);
 
 	if (importConfig.kind === "keyring") {
@@ -149,14 +151,28 @@ if (!walletExists(walletsBefore)) {
 		if (support.jsonFlag) {
 			console.log("Wallet import mode: keyring-path");
 			const okWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
-			const okWithoutName = okWithName || nameArgs.length === 0 ? okWithName : tryWalletImport(["wallet", "import", support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
+			const okWithoutName = okWithName || nameArgs.length === 0
+				? okWithName
+				: tryWalletImport(["wallet", "import", support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
 			if (!okWithoutName) {
 				console.log("Wallet import mode: keyring-stdin");
 				const okJsonFlagStdin = tryWalletImport(["wallet", "import", ...nameArgs, support.jsonFlag, ...encryptionArgs], importConfig.keyringJson);
-				const okJsonFlagStdinNoName = okJsonFlagStdin || nameArgs.length === 0 ? okJsonFlagStdin : tryWalletImport(["wallet", "import", support.jsonFlag, ...encryptionArgs], importConfig.keyringJson);
+				const okJsonFlagStdinNoName = okJsonFlagStdin || nameArgs.length === 0
+					? okJsonFlagStdin
+					: tryWalletImport(["wallet", "import", support.jsonFlag, ...encryptionArgs], importConfig.keyringJson);
 				if (!okJsonFlagStdinNoName) {
 					if (!support.stdinFlag) {
-						throw new Error("wallet import rejected the JSON path and does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
+						const okPlainStdin = tryWalletImport(
+							["wallet", "import", ...nameArgs, ...encryptionArgs],
+							importConfig.keyringJson,
+						);
+						const okPlainStdinNoName = okPlainStdin || nameArgs.length === 0
+							? okPlainStdin
+							: tryWalletImport(["wallet", "import", ...encryptionArgs], importConfig.keyringJson);
+						if (!okPlainStdinNoName) {
+							throw new Error("wallet import rejected the JSON path and does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
+						}
+						break;
 					}
 					const okStdinWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], importConfig.keyringJson);
 					if (!okStdinWithName && nameArgs.length > 0) {
@@ -193,4 +209,3 @@ if (!walletExists(walletsFinal)) {
 if (!walletIsDefault(walletsFinal)) {
 	throw new Error("Wallet exists, but is not marked as default after setting.");
 }
-run("npm", ["run", "api:start"]);
