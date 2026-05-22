@@ -38,14 +38,15 @@ function walletIsDefault(wallets) {
   return wallets.some((wallet) => wallet.name === walletName && wallet.isDefault);
 }
 
-function detectJsonImportMode() {
+function detectImportSupport() {
   const help = run("vara-wallet", ["wallet", "import", "--help"], { capture: true });
-  if (help.includes("--json <path>")) return { mode: "path", flag: "--json" };
-  if (help.includes("--json-file <path>")) return { mode: "path", flag: "--json-file" };
-  if (help.includes("--keystore <path>")) return { mode: "path", flag: "--keystore" };
-  if (help.includes("--file <path>")) return { mode: "path", flag: "--file" };
-  if (help.includes("--stdin")) return { mode: "stdin", flag: "--stdin" };
-  return { mode: "unsupported", flag: null };
+  const supportsName = help.includes("--name <name>");
+  if (help.includes("--json <path>")) return { supportsName, jsonFlag: "--json", stdinFlag: null };
+  if (help.includes("--json-file <path>")) return { supportsName, jsonFlag: "--json-file", stdinFlag: null };
+  if (help.includes("--keystore <path>")) return { supportsName, jsonFlag: "--keystore", stdinFlag: null };
+  if (help.includes("--file <path>")) return { supportsName, jsonFlag: "--file", stdinFlag: null };
+  if (help.includes("--stdin")) return { supportsName, jsonFlag: null, stdinFlag: "--stdin" };
+  return { supportsName, jsonFlag: null, stdinFlag: null };
 }
 
 function readKeyringJson(path) {
@@ -54,19 +55,33 @@ function readKeyringJson(path) {
   return raw;
 }
 
+function isImportArgError(errorMessage) {
+  return /too many arguments|unexpected argument|unknown option/i.test(errorMessage);
+}
+
+function tryWalletImport(args, input) {
+  try {
+    run("vara-wallet", args, { capture: true, input });
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (isImportArgError(message)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 function importArgsFromEnv() {
   if (process.env.OPERATOR_KEYRING_JSON_PATH) {
     const keyringJson = readKeyringJson(process.env.OPERATOR_KEYRING_JSON_PATH);
-    const mode = detectJsonImportMode();
-    if (mode.mode === "path" && mode.flag) {
-      return { kind: "keyring-path", args: [mode.flag, process.env.OPERATOR_KEYRING_JSON_PATH] };
-    }
-    if (mode.mode === "stdin" && mode.flag) {
-      return { kind: "keyring-stdin", args: [mode.flag], input: keyringJson };
-    }
-    if (mode.mode === "unsupported") {
-      throw new Error("wallet import does not support JSON keystore paths in this vara-wallet build.");
-    }
+    const support = detectImportSupport();
+    return {
+      kind: "keyring",
+      keyringJson,
+      keyringPath: process.env.OPERATOR_KEYRING_JSON_PATH,
+      support
+    };
   }
 
   if (process.env.OPERATOR_KEYRING_JSON_B64) {
@@ -74,24 +89,21 @@ function importArgsFromEnv() {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, Buffer.from(process.env.OPERATOR_KEYRING_JSON_B64, "base64"));
     const keyringJson = readKeyringJson(path);
-    const mode = detectJsonImportMode();
-    if (mode.mode === "path" && mode.flag) {
-      return { kind: "keyring-path", args: [mode.flag, path] };
-    }
-    if (mode.mode === "stdin" && mode.flag) {
-      return { kind: "keyring-stdin", args: [mode.flag], input: keyringJson };
-    }
-    if (mode.mode === "unsupported") {
-      throw new Error("wallet import does not support JSON keystore paths in this vara-wallet build.");
-    }
+    const support = detectImportSupport();
+    return {
+      kind: "keyring",
+      keyringJson,
+      keyringPath: path,
+      support
+    };
   }
 
   if (process.env.OPERATOR_SEED) {
-    return { kind: "seed", args: ["--seed", process.env.OPERATOR_SEED] };
+    return { kind: "seed", args: ["--seed", process.env.OPERATOR_SEED], support: detectImportSupport() };
   }
 
   if (process.env.OPERATOR_MNEMONIC) {
-    return { kind: "mnemonic", args: ["--mnemonic", process.env.OPERATOR_MNEMONIC] };
+    return { kind: "mnemonic", args: ["--mnemonic", process.env.OPERATOR_MNEMONIC], support: detectImportSupport() };
   }
 
   return undefined;
@@ -110,14 +122,47 @@ if (!walletExists(walletsBefore)) {
     throw new Error("Missing operator wallet secret. Set OPERATOR_KEYRING_JSON_PATH, OPERATOR_KEYRING_JSON_B64, OPERATOR_SEED, or OPERATOR_MNEMONIC in Render.");
   }
 
-  console.log(`Wallet import mode: ${importConfig.kind}`);
-
   const encryptionArgs = passphrase ? ["--passphrase", passphrase] : [];
-  run(
-    "vara-wallet",
-    ["wallet", "import", "--name", walletName, ...importConfig.args, ...encryptionArgs],
-    { capture: true, input: importConfig.input }
-  );
+  const nameArgs = importConfig.support?.supportsName ? ["--name", walletName] : [];
+
+  if (importConfig.kind === "keyring") {
+    const { support } = importConfig;
+    if (!support.jsonFlag && !support.stdinFlag) {
+      throw new Error("wallet import does not support JSON keystore input in this vara-wallet build.");
+    }
+
+    if (support.jsonFlag) {
+      console.log("Wallet import mode: keyring-path");
+      const ok = tryWalletImport(
+        ["wallet", "import", ...nameArgs, support.jsonFlag, importConfig.keyringPath, ...encryptionArgs],
+        undefined
+      );
+      if (!ok) {
+        console.log("Wallet import mode: keyring-stdin");
+        const stdinArgs = support.stdinFlag ? [support.stdinFlag] : [];
+        run(
+          "vara-wallet",
+          ["wallet", "import", ...nameArgs, ...stdinArgs, ...encryptionArgs],
+          { capture: true, input: importConfig.keyringJson }
+        );
+      }
+    } else {
+      console.log("Wallet import mode: keyring-stdin");
+      const stdinArgs = support.stdinFlag ? [support.stdinFlag] : [];
+      run(
+        "vara-wallet",
+        ["wallet", "import", ...nameArgs, ...stdinArgs, ...encryptionArgs],
+        { capture: true, input: importConfig.keyringJson }
+      );
+    }
+  } else {
+    console.log(`Wallet import mode: ${importConfig.kind}`);
+    run(
+      "vara-wallet",
+      ["wallet", "import", ...nameArgs, ...importConfig.args, ...encryptionArgs],
+      { capture: true }
+    );
+  }
 
   const walletsAfter = getWalletList();
   if (!walletExists(walletsAfter)) {
