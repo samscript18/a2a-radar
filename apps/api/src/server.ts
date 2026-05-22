@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isAuthorizedGrowthRequest, runGrowthCycle } from "./services/growth-cycle.js";
@@ -21,6 +22,9 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
 }
 
 async function readSnapshot() {
+  if (!existsSync(snapshotPath)) {
+    runIndexChain();
+  }
   return JSON.parse(await readFile(snapshotPath, "utf8")) as Record<string, unknown>;
 }
 
@@ -200,9 +204,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
 
   if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/snapshot")) {
     try {
-      const snapshot = await readFile(snapshotPath, "utf8");
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(snapshot);
+      sendJson(response, 200, await readSnapshot());
     } catch {
       sendJson(response, 503, { ok: false, error: "snapshot unavailable; index real chain events first" });
     }
