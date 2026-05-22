@@ -172,7 +172,6 @@ if (!walletExists(walletsBefore)) {
 						if (!okPlainStdinNoName) {
 							throw new Error("wallet import rejected the JSON path and does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
 						}
-						break;
 					}
 					const okStdinWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], importConfig.keyringJson);
 					if (!okStdinWithName && nameArgs.length > 0) {
