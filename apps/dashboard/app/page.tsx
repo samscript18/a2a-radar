@@ -8,6 +8,8 @@ import {
   CircleDollarSign,
   Clock3,
   DatabaseZap,
+  Handshake,
+  History,
   RadioTower,
   ReceiptText,
   Route,
@@ -58,6 +60,11 @@ export default async function Home() {
   const boardAnnouncementId = latestBoardAnnouncementId(snapshot) ?? receipt.boardAnnouncementId;
   const treasuryRaw = snapshot.raw?.marketTreasuryRaw ?? totalEconomicRaw(snapshot);
   const latestPaid = snapshot.economicInteractions.at(-1);
+  const partners = snapshot.partners ?? [];
+  const boardEvents = snapshot.boardEvents ?? [];
+  const latestSubscriptions = snapshot.latestSubscriptions ?? [];
+  const growthTimeline = snapshot.growthTimeline ?? [];
+  const ecosystemInteractions = snapshot.ecosystemInteractions ?? [];
 
   const agentCards: AgentCardModel[] = [
     {
@@ -143,6 +150,56 @@ export default async function Home() {
               </div>
             </Panel>
 
+            <Panel title="Partner Integrations" icon={<Handshake size={18} />} subtitle="Live registered ecosystem apps selected for useful, non-spam integrations.">
+              {partners.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {partners.slice(0, 6).map((partner) => (
+                    <div key={partner.id} className="rounded-md border border-white/10 bg-white/[0.045] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">@{partner.handle}</p>
+                          <p className="mt-1 text-xs font-medium text-cyan-200">{partner.track} · {partner.status}</p>
+                        </div>
+                        <span className="rounded bg-violet-300/10 px-2 py-1 text-xs font-semibold text-violet-200">
+                          {partner.integrationsIn + partner.integrationsOut} calls
+                        </span>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-400">{partner.description}</p>
+                      <p className="mt-3 text-xs leading-5 text-slate-500">{partner.integrationNote}</p>
+                      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                        <MiniStat label="in" value={partner.integrationsIn.toLocaleString()} />
+                        <MiniStat label="out" value={partner.integrationsOut.toLocaleString()} />
+                        <MiniStat label="partners" value={partner.uniquePartners.toLocaleString()} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No partner applications indexed yet." />
+              )}
+            </Panel>
+
+            <Panel title="Live Activity Feed" icon={<Zap size={18} />} subtitle="Recent local receipts and public ecosystem interactions from the Vara indexer.">
+              {ecosystemInteractions.length > 0 || snapshot.activity.length > 0 ? (
+                <div className="space-y-3">
+                  {snapshot.activity.slice(-4).map((item) => (
+                    <FeedRow key={`${item.kind}-${item.source}`} kind={item.kind} title={item.metadata} detail={shortenAddress(item.source)} time={item.observedAtMs} />
+                  ))}
+                  {ecosystemInteractions.slice(0, 5).map((item) => (
+                    <FeedRow
+                      key={item.id}
+                      kind={item.kind}
+                      title={`${item.callerHandle ?? "unknown"} -> ${item.calleeHandle ?? "unknown"}`}
+                      detail={item.method ?? `block ${item.blockNumber}`}
+                      time={item.observedAtMs}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No live activity indexed yet." />
+              )}
+            </Panel>
+
             <Panel title="Recent Receipts" icon={<ReceiptText size={18} />} subtitle="Latest autonomous growth-cycle receipt file.">
               {receipt.exists ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -160,6 +217,26 @@ export default async function Home() {
           </div>
 
           <aside className="space-y-6">
+            <Panel title="Latest Board Events" icon={<RadioTower size={18} />} subtitle="Public Board posts read from the Vara Agent Network indexer.">
+              {boardEvents.length > 0 ? (
+                <div className="space-y-3">
+                  {boardEvents.slice(0, 5).map((event) => (
+                    <div key={event.id} className="rounded-md border border-white/10 bg-white/[0.045] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">@{event.handle}</p>
+                        <span className="text-xs text-slate-500">#{event.postId}</span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-white">{event.title}</p>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">{event.body}</p>
+                      <p className="mt-3 text-xs text-slate-500">{formatDateTime(event.postedAtMs)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No Board events indexed yet." />
+              )}
+            </Panel>
+
             <Panel title="Treasury / Micropayments" icon={<CircleDollarSign size={18} />} subtitle="Micro-payments validate the Economy & Markets track.">
               <div className="rounded-md border border-cyan-300/15 bg-cyan-300/5 p-4">
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Raw treasury units</p>
@@ -177,6 +254,25 @@ export default async function Home() {
                   <EmptyState label="No paid interaction indexed yet." />
                 )}
               </div>
+            </Panel>
+
+            <Panel title="Latest Subscriptions" icon={<WalletCards size={18} />} subtitle="Paid subscription receipts indexed from live smoke and growth cycles.">
+              {latestSubscriptions.length > 0 ? (
+                <div className="space-y-3">
+                  {latestSubscriptions.slice(-4).reverse().map((subscription) => (
+                    <div key={subscription.id} className="rounded-md border border-white/10 bg-white/[0.045] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-semibold text-white">{subscription.tier}</p>
+                        <span className="rounded bg-emerald-300/10 px-2 py-1 text-xs font-semibold text-emerald-200">{formatRawVara(subscription.amount.amount)}</span>
+                      </div>
+                      <p className="mt-2 break-all font-mono text-xs text-slate-500">{shortenAddress(subscription.id, 10, 8)}</p>
+                      <p className="mt-2 text-xs text-slate-500">{subscription.source} · {formatDateTime(subscription.observedAtMs)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No subscription receipts indexed yet." />
+              )}
             </Panel>
 
             <Panel title="Demand / Opportunity Feed" icon={<Sparkles size={18} />} subtitle="Current clusters and opportunities from Core.">
@@ -201,6 +297,25 @@ export default async function Home() {
                   </div>
                 ))}
               </div>
+            </Panel>
+
+            <Panel title="Growth Cycle Status" icon={<History size={18} />} subtitle="Low-frequency automation state, never synthetic activity.">
+              {growthTimeline.length > 0 ? (
+                <div className="space-y-3">
+                  {growthTimeline.slice(0, 6).map((item, index) => (
+                    <div key={`${item.kind}-${item.observedAtMs}-${index}`} className="rounded-md border border-white/10 bg-white/[0.045] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-200">{item.kind}</p>
+                        <p className="text-xs text-slate-500">{formatDateTime(item.observedAtMs)}</p>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-white">{item.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.metadata}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No growth timeline indexed yet." />
+              )}
             </Panel>
 
             <Panel title="Demo Narrative" icon={<Trophy size={18} />} subtitle="Judge-facing summary.">
@@ -320,6 +435,31 @@ function ReceiptStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border border-white/10 bg-black/20 p-4">
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 break-words text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-white/10 bg-black/20 p-2">
+      <p className="uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function FeedRow({ kind, title, detail, time }: { kind: string; title: string; detail: string; time: number }) {
+  return (
+    <div className="flex gap-3 rounded-md border border-white/10 bg-white/[0.045] p-4">
+      <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.75)]" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">{kind}</p>
+          <p className="text-xs text-slate-500">{formatDateTime(time)}</p>
+        </div>
+        <p className="mt-2 text-sm font-semibold text-white">{title}</p>
+        <p className="mt-1 truncate text-xs text-slate-500">{detail}</p>
+      </div>
     </div>
   );
 }

@@ -1,31 +1,42 @@
 {
   "version": 1,
-  "radarHandle": "@a2a-radar",
-  "recurringOutboundCalls": [
+  "radarHandle": "a2a-radar",
+  "verifiedTargets": [
     {
-      "target": "@varabridge",
-      "cadence": "5m",
-      "purpose": "oracle demand and provider reliability enrichment"
+      "target": "varabridge",
+      "purpose": "oracle demand and provider reliability enrichment",
+      "status": "indexer-observed"
     },
     {
-      "target": "@hy4-predict-app",
-      "cadence": "10m",
-      "purpose": "prediction market demand and settlement dependency detection"
+      "target": "hy4-predict-app",
+      "purpose": "prediction market demand and settlement dependency detection",
+      "status": "indexer-observed"
     },
     {
-      "target": "@zeeast-casino",
-      "cadence": "15m",
-      "purpose": "randomness and payment-flow demand signals"
+      "target": "hy4-social-app",
+      "purpose": "DAO and coordination activity for Broadcast reports",
+      "status": "indexer-observed"
     },
     {
-      "target": "Board",
-      "cadence": "60m",
-      "purpose": "public ecosystem intelligence reports"
+      "target": "zara-market-app",
+      "purpose": "marketplace demand and opportunity routing",
+      "status": "indexer-observed"
     },
     {
-      "target": "Chat",
-      "cadence": "event",
-      "purpose": "urgent opportunity and integration alerts"
+      "target": "zeeast-casino",
+      "purpose": "high-volume services activity for reputation scoring",
+      "status": "indexer-observed"
+    }
+  ],
+  "recurringOutboundPolicy": [
+    {
+      "rule": "Call external programs only after IDL/interface inspection."
+    },
+    {
+      "rule": "Use low-frequency loops and real data dependencies only."
+    },
+    {
+      "rule": "Never count indexer observation as a cross-program call."
     }
   ],
   "incomingCallProducts": [
@@ -38,4 +49,3 @@
     "queue_board_report"
   ]
 }
-

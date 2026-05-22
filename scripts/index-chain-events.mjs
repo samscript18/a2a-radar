@@ -1,6 +1,17 @@
 import { agents, readJson, requireProgramIds, runJson, writeJson } from "./lib/cli.mjs";
 
 const ids = requireProgramIds();
+const INDEXER_GRAPHQL_URL = process.env.INDEXER_GRAPHQL_URL ?? "https://agents-api.vara.network/graphql";
+const TARGET_PARTNER_HANDLES = new Set([
+  "varabridge",
+  "hy4-predict-app",
+  "hy4-social-app",
+  "zara-market-app",
+  "varastrategy",
+  "vara-rng",
+  "thebookdex",
+  "zeeast-casino"
+]);
 
 function unwrap(value) {
   return value?.result?.ok ?? value?.result?.Ok ?? value?.result ?? value;
@@ -76,6 +87,178 @@ function txActivity(kind, receipt, metadata) {
   };
 }
 
+async function queryIndexer(query, variables = {}) {
+  try {
+    const response = await fetch(INDEXER_GRAPHQL_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, variables })
+    });
+    if (!response.ok) {
+      console.warn(`Indexer request failed: ${response.status} ${response.statusText}`);
+      return {};
+    }
+    const payload = await response.json();
+    if (payload.errors?.length) {
+      console.warn(`Indexer GraphQL errors: ${payload.errors.map((error) => error.message).join("; ")}`);
+      return {};
+    }
+    return payload.data ?? {};
+  } catch (error) {
+    console.warn(`Indexer unavailable: ${error.message}`);
+    return {};
+  }
+}
+
+function metricFor(metrics, applicationId) {
+  return metrics.find((metric) => metric.applicationId === applicationId) ?? {};
+}
+
+function integrationNote(handle) {
+  switch (handle) {
+    case "varabridge":
+      return "Oracle/trend input candidate for Core demand enrichment.";
+    case "hy4-predict-app":
+      return "Prediction market activity candidate for Market signal packaging.";
+    case "hy4-social-app":
+      return "DAO/social coordination candidate for Broadcast announcements.";
+    case "zara-market-app":
+      return "Marketplace demand candidate for opportunity routing.";
+    case "varastrategy":
+      return "Strategy signal candidate for premium market intelligence.";
+    case "vara-rng":
+      return "Randomness oracle candidate for event sampling and partner demos.";
+    case "thebookdex":
+      return "DEX/liquidity candidate for economy-side opportunity scans.";
+    case "zeeast-casino":
+      return "High-activity services candidate for reputation and risk scoring.";
+    default:
+      return "Observed live application; inspect callable interface before integration.";
+  }
+}
+
+function boardEvent(row, applicationById) {
+  const application = applicationById.get(row.applicationId);
+  return {
+    id: row.id,
+    postId: String(row.postId),
+    applicationId: row.applicationId,
+    handle: application?.handle ?? "unknown",
+    title: row.title,
+    body: row.body,
+    kind: row.kind,
+    tags: row.tags ?? [],
+    postedAtMs: Number(row.postedAt ?? 0)
+  };
+}
+
+function timelineItem(kind, title, timestampMs, metadata) {
+  return {
+    kind,
+    title,
+    observedAtMs: Number(timestampMs ?? Date.now()),
+    metadata
+  };
+}
+
+async function readEcosystemIndex() {
+  const query = `
+    query A2ARadarEcosystemIndex {
+      allApplications(first: 160, orderBy: REGISTERED_AT_DESC) {
+        nodes {
+          id
+          handle
+          description
+          track
+          status
+          githubUrl
+          registeredAt
+          tags
+        }
+      }
+      allAppMetrics(first: 160) {
+        nodes {
+          applicationId
+          integrationsIn
+          integrationsOut
+          uniquePartners
+          totalValuePaidRaw
+          postsActive
+          messagesSent
+          updatedAt
+        }
+      }
+      allAnnouncements(first: 12, orderBy: POSTED_AT_DESC, condition: { archived: false }) {
+        nodes {
+          id
+          applicationId
+          postId
+          title
+          body
+          kind
+          postedAt
+          tags
+        }
+      }
+      allInteractions(first: 18, orderBy: SUBSTRATE_BLOCK_TS_DESC) {
+        nodes {
+          id
+          kind
+          caller
+          callerHandle
+          callee
+          calleeHandle
+          method
+          valuePaidRaw
+          substrateBlockNumber
+          substrateBlockTs
+        }
+      }
+    }
+  `;
+  const data = await queryIndexer(query);
+  const applications = data.allApplications?.nodes ?? [];
+  const metrics = data.allAppMetrics?.nodes ?? [];
+  const applicationById = new Map(applications.map((application) => [application.id, application]));
+  const partners = applications
+    .filter((application) => TARGET_PARTNER_HANDLES.has(application.handle))
+    .map((application) => {
+      const metric = metricFor(metrics, application.id);
+      return {
+        id: application.id,
+        handle: application.handle,
+        track: application.track,
+        status: application.status,
+        description: application.description,
+        githubUrl: application.githubUrl,
+        registeredAtMs: Number(application.registeredAt ?? 0),
+        integrationsIn: Number(metric.integrationsIn ?? 0),
+        integrationsOut: Number(metric.integrationsOut ?? 0),
+        uniquePartners: Number(metric.uniquePartners ?? 0),
+        postsActive: Number(metric.postsActive ?? 0),
+        messagesSent: Number(metric.messagesSent ?? 0),
+        integrationNote: integrationNote(application.handle)
+      };
+    })
+    .sort((a, b) => (b.integrationsIn + b.integrationsOut) - (a.integrationsIn + a.integrationsOut));
+
+  const boardEvents = (data.allAnnouncements?.nodes ?? []).map((row) => boardEvent(row, applicationById));
+  const ecosystemInteractions = (data.allInteractions?.nodes ?? []).map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    caller: row.caller,
+    callerHandle: row.callerHandle,
+    callee: row.callee,
+    calleeHandle: row.calleeHandle,
+    method: row.method,
+    valuePaidRaw: row.valuePaidRaw,
+    blockNumber: Number(row.substrateBlockNumber ?? 0),
+    observedAtMs: Number(row.substrateBlockTs ?? 0)
+  }));
+
+  return { partners, boardEvents, ecosystemInteractions };
+}
+
 console.log("Reading live Core counts");
 const counts = unwrap(runJson("vara-wallet", [
   "call",
@@ -128,6 +311,8 @@ const treasury = BigInt(unwrap(runJson("vara-wallet", [
 const smoke = readJson("artifacts/deploy/live-smoke-results.json", {});
 const growthReceipts = readJson("artifacts/deploy/growth-loop-receipts.json", []);
 const growth = growthReceipts.at(-1)?.receipts ?? {};
+console.log("Reading Vara Agent Network indexer");
+const ecosystemIndex = await readEcosystemIndex();
 const activity = [
   txActivity("DemandRequest", smoke.ingest, "Core accepted a live demand signal."),
   txActivity("OutgoingCall", smoke.report, "Core generated a report for Broadcast."),
@@ -142,6 +327,29 @@ const activity = [
   txActivity("Payment", growth.corePurchaseReport, "Growth loop: Market reported the purchase back to Core."),
   txActivity("BoardPost", growth.boardAnnouncement, "Growth loop: Broadcast posted a public Board announcement.")
 ].filter(Boolean);
+
+const latestSubscriptions = [
+  smoke.subscription?.messageId ? {
+    id: smoke.subscription.messageId,
+    tier: "Pulse",
+    amount: { amount: "25000000000", asset: "VARA" },
+    observedAtMs: Date.now(),
+    source: "live-smoke"
+  } : undefined,
+  growth.marketSubscription?.messageId ? {
+    id: growth.marketSubscription.messageId,
+    tier: "Pulse",
+    amount: { amount: "25000000000", asset: "VARA" },
+    observedAtMs: Date.now(),
+    source: "growth-loop"
+  } : undefined
+].filter(Boolean);
+
+const growthTimeline = [
+  ...activity.slice(-8).map((item) => timelineItem(item.kind, item.metadata, item.observedAtMs, item.source)),
+  ...ecosystemIndex.boardEvents.slice(0, 4).map((item) => timelineItem("Board", item.title, item.postedAtMs, item.handle)),
+  ...ecosystemIndex.ecosystemInteractions.slice(0, 4).map((item) => timelineItem("Ecosystem", `${item.callerHandle ?? "unknown"} -> ${item.calleeHandle ?? "unknown"}`, item.observedAtMs, item.kind))
+].sort((a, b) => b.observedAtMs - a.observedAtMs);
 
 const snapshot = {
   generatedAt: new Date().toISOString(),
@@ -166,6 +374,11 @@ const snapshot = {
   clusters,
   opportunities: (report?.opportunities ?? []).map(opportunity),
   providerMatches: [],
+  partners: ecosystemIndex.partners,
+  boardEvents: ecosystemIndex.boardEvents,
+  ecosystemInteractions: ecosystemIndex.ecosystemInteractions,
+  latestSubscriptions,
+  growthTimeline,
   activity,
   economicInteractions: [
     smoke.subscription?.messageId ? {

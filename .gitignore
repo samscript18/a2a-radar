@@ -16,6 +16,7 @@ dist/
 *keyring*.json
 artifacts/deploy/
 artifacts/latest-snapshot.json
+artifacts/social-proof-copy.md
 deploy/generated/
 tools/vara-wallet-patched/
 programs/*/.binpath

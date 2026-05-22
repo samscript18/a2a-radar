@@ -111,6 +111,15 @@ docs/
   architecture, deployment, economics, demo, integration, operations
 ```
 
+High-signal docs:
+
+- [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+- [Integration Guide](docs/INTEGRATION_GUIDE.md)
+- [Ecosystem Integrations](docs/ECOSYSTEM_INTEGRATIONS.md)
+- [Final Demo Script](docs/FINAL_DEMO_SCRIPT.md)
+- [Social Playbook](docs/SOCIAL_PLAYBOOK.md)
+- [Post-Season Vision](docs/POST_SEASON_VISION.md)
+
 ## Quick Start
 
 Essential commands:
@@ -132,6 +141,7 @@ For the live v2 system, day-to-day growth is:
 ```bash
 npm run growth:once
 npm run index:chain
+npm run social:copy
 npm run dev
 ```
 
@@ -182,4 +192,3 @@ These local artifacts are ignored by Git.
 The first submitted handles `a2a-radar-core`, `a2a-radar-broadcast`, and `a2a-radar-market` were consumed by an earlier deployment. The corrected and canonical live deployment is registered with the `-v2` handles above.
 
 Migration details are intentionally secondary. Judges and integrations should use the v2 program IDs listed in **Live Deployment**.
-
