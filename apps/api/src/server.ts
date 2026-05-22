@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,76 @@ const snapshotPath = process.env.RADAR_SNAPSHOT
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
   response.end(JSON.stringify(body));
+}
+
+async function readSnapshot() {
+  return JSON.parse(await readFile(snapshotPath, "utf8")) as Record<string, unknown>;
+}
+
+function runIndexChain() {
+  const result = spawnSync("npm", ["run", "index:chain"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env
+  });
+  if (result.status !== 0) {
+    const details = `${result.stderr ?? ""}${result.stdout ?? ""}`.trim();
+    throw new Error(`npm run index:chain failed${details ? `: ${details}` : ""}`);
+  }
+  return {
+    ok: true,
+    stdout: result.stdout?.trim() ?? ""
+  };
+}
+
+function discoverPayload(snapshot: Record<string, unknown>) {
+  const leaderboard = Array.isArray(snapshot.leaderboard) ? snapshot.leaderboard : [];
+  const clusters = Array.isArray(snapshot.clusters) ? snapshot.clusters : [];
+  const opportunities = Array.isArray(snapshot.opportunities) ? snapshot.opportunities : [];
+  const partners = Array.isArray(snapshot.partners) ? snapshot.partners : [];
+  return {
+    ok: true,
+    source: "artifacts/latest-snapshot.json",
+    routes: [
+      {
+        name: "GetTopAgents",
+        status: leaderboard.length > 0 ? "available" : "coming soon",
+        sailsRoute: "Core/Ranking(limit)",
+        example: leaderboard.slice(0, 3)
+      },
+      {
+        name: "GetReputation",
+        status: leaderboard.length > 0 ? "available" : "coming soon",
+        sailsRoute: "Core/ReputationScore(agent)",
+        example: leaderboard[0] ?? null
+      },
+      {
+        name: "GetTrendingSignals",
+        status: clusters.length > 0 ? "available" : "coming soon",
+        sailsRoute: "Core/DemandSignals(limit)",
+        example: clusters.slice(0, 3)
+      },
+      {
+        name: "GetIntegrationRecommendations",
+        status: partners.length > 0 ? "available" : "coming soon",
+        sailsRoute: "Core/IntegrationSuggestions(requester, limit)",
+        example: partners.slice(0, 3)
+      },
+      {
+        name: "GetOpportunities",
+        status: opportunities.length > 0 ? "available" : "coming soon",
+        sailsRoute: "Core/EcosystemReport()",
+        example: opportunities.slice(0, 3)
+      },
+      {
+        name: "GetMarketSignals",
+        status: clusters.length > 0 ? "available" : "coming soon",
+        sailsRoute: "Core/PremiumSignalsForMarket(limit)",
+        example: clusters.slice(0, 2)
+      }
+    ]
+  };
 }
 
 export async function handleRequest(request: IncomingMessage, response: ServerResponse) {
@@ -48,6 +119,33 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         ok: false,
         error: error instanceof Error ? error.message : "growth cycle failed"
       });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/index-chain") {
+    if (!isAuthorizedGrowthRequest(request.headers.authorization)) {
+      sendJson(response, 401, { ok: false, error: "unauthorized" });
+      return;
+    }
+
+    try {
+      const result = runIndexChain();
+      sendJson(response, 200, { ok: true, indexed: true, stdout: result.stdout });
+    } catch (error) {
+      sendJson(response, 500, {
+        ok: false,
+        error: error instanceof Error ? error.message : "chain index failed"
+      });
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/discover") {
+    try {
+      sendJson(response, 200, discoverPayload(await readSnapshot()));
+    } catch {
+      sendJson(response, 503, { ok: false, error: "snapshot unavailable; index real chain events first" });
     }
     return;
   }

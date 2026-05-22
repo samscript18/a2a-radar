@@ -9,9 +9,20 @@ process.env.GROWTH_API_SECRET = "test-secret";
 
 const repoRoot = mkdtempSync(join(tmpdir(), "a2a-radar-growth-api-"));
 mkdirSync(join(repoRoot, "artifacts/deploy"), { recursive: true });
+mkdirSync(join(repoRoot, "artifacts"), { recursive: true });
 writeFileSync(
   join(repoRoot, "artifacts/deploy/growth-loop-state.json"),
   `${JSON.stringify({ lastCycleAt: Date.now() }, null, 2)}\n`,
+  "utf8"
+);
+writeFileSync(
+  join(repoRoot, "artifacts/latest-snapshot.json"),
+  `${JSON.stringify({
+    leaderboard: [{ handle: "@agent", score: 1 }],
+    clusters: [{ label: "analytics", demandScore: 5 }],
+    opportunities: [],
+    partners: [{ handle: "varabridge", integrationNote: "oracle" }]
+  }, null, 2)}\n`,
   "utf8"
 );
 process.env.RADAR_REPO_ROOT = repoRoot;
@@ -72,4 +83,17 @@ test("cooldown skip is preserved across repeated authorized requests", async () 
   assert.equal(first.body.skipped, true);
   assert.equal(second.body.skipped, true);
   assert.ok(second.body.nextCycleDueInSeconds <= first.body.nextCycleDueInSeconds);
+});
+
+test("unauthorized index refresh returns 401", async () => {
+  const response = await invoke({ url: "/api/index-chain" });
+  assert.equal(response.status, 401);
+  assert.deepEqual(response.body, { ok: false, error: "unauthorized" });
+});
+
+test("discover endpoint exposes indexed API surface", async () => {
+  const response = await invoke({ method: "GET", url: "/api/discover" });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.ok, true);
+  assert.ok(response.body.routes.some((route) => route.name === "GetTopAgents" && route.status === "available"));
 });

@@ -10,8 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger secured growth endpoint
+        id: growth
         run: |
-          curl --fail-with-body -sS -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
+          response="$(curl --fail-with-body -sS -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
+            -H "Authorization: Bearer $GROWTH_API_SECRET" \
+            -H "Content-Type: application/json")"
+          echo "$response"
+          skipped="$(node -e 'const fs=require("node:fs"); const body=fs.readFileSync(0,"utf8"); const json=JSON.parse(body); process.stdout.write(String(json.skipped === true));' <<< "$response")"
+          echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
+        env:
+          GROWTH_API_URL: ${{ secrets.GROWTH_API_URL }}
+          GROWTH_API_SECRET: ${{ secrets.GROWTH_API_SECRET }}
+
+      - name: Refresh indexed dashboard snapshot
+        if: steps.growth.outputs.skipped == 'false'
+        run: |
+          curl --fail-with-body -sS -X POST "$GROWTH_API_URL/api/index-chain" \
             -H "Authorization: Bearer $GROWTH_API_SECRET" \
             -H "Content-Type: application/json"
         env:
