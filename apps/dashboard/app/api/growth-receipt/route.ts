@@ -13,7 +13,23 @@ const EMPTY_RECEIPT: GrowthReceiptSummary = {
   treasuryDeltaRaw: "0"
 };
 
+function apiBase() {
+  return process.env.RADAR_API_URL ?? process.env.NEXT_PUBLIC_RADAR_API_URL ?? process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL;
+}
+
 export async function GET() {
+  const base = apiBase();
+  if (base) {
+    try {
+      const response = await fetch(`${base.replace(/\/$/, "")}/api/growth-receipt`, { cache: "no-store" });
+      if (response.ok) {
+        return NextResponse.json(await response.json());
+      }
+    } catch {
+      // Fall through to local artifact or empty state.
+    }
+  }
+
   try {
     const raw = await readFile(resolve(process.cwd(), "../../artifacts/deploy/growth-loop-receipts.json"), "utf8");
     const cycles = JSON.parse(raw) as GrowthReceiptCycle[];

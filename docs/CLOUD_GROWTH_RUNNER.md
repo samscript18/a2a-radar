@@ -43,12 +43,29 @@ curl -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
 
 Missing or invalid tokens return `401`.
 
+Read endpoints:
+
+```text
+GET /snapshot
+GET /api/growth-receipt
+GET /api/discover
+```
+
+The dashboard service proxies these through its own same-origin routes. If dashboard and API are deployed as separate Render services, set this on the dashboard service:
+
+```bash
+RADAR_API_URL=https://your-a2a-radar-api.onrender.com
+```
+
+Without `RADAR_API_URL`, the dashboard can only read local artifact files from its own service container, which is why it may show data locally but empty states on deployment.
+
 ## Required Environment
 
 ```bash
 HOST=0.0.0.0
 VARA_NETWORK=mainnet
 GROWTH_API_SECRET=<strong random secret>
+RADAR_REPO_ROOT=/opt/render/project/src
 ```
 
 For Board announcements:

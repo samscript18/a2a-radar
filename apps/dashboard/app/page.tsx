@@ -105,7 +105,9 @@ export default function Home() {
   const boardAnnouncementId = latestBoardAnnouncementId(snapshot) ?? receipt.boardAnnouncementId;
   const treasuryRaw = snapshot.raw?.marketTreasuryRaw ?? totalEconomicRaw(snapshot);
   const latestPaid = snapshot.economicInteractions.at(-1);
-  const partners = snapshot.partners ?? [];
+  const externalIntegrations = snapshot.externalIntegrations ?? [];
+  const integratedHandles = new Set(externalIntegrations.map((integration) => integration.handle));
+  const partners = (snapshot.partners ?? []).filter((partner) => !integratedHandles.has(partner.handle));
   const boardEvents = snapshot.boardEvents ?? [];
   const latestSubscriptions = snapshot.latestSubscriptions ?? [];
   const growthTimeline = snapshot.growthTimeline ?? [];
@@ -195,7 +197,30 @@ export default function Home() {
               </div>
             </Panel>
 
-            <Panel title="Partner Integrations" icon={<Handshake size={18} />} subtitle="Live registered ecosystem apps selected for useful, non-spam integrations.">
+            <Panel title="Verified External Integrations" icon={<Handshake size={18} />} subtitle="Only partners with a real A2A Radar integration receipt appear here.">
+              {externalIntegrations.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {externalIntegrations.map((integration) => (
+                    <div key={`${integration.handle}-${integration.observedAt}`} className="rounded-md border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-white">@{integration.handle}</p>
+                          <p className="mt-1 text-xs font-medium text-emerald-200">{integration.category} · integrated</p>
+                        </div>
+                        <span className="rounded bg-emerald-300/10 px-2 py-1 text-xs font-semibold text-emerald-200">real calls</span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{integration.summary}</p>
+                      <p className="mt-3 break-all font-mono text-xs text-slate-500">{shortenAddress(integration.programId, 10, 8)}</p>
+                      <p className="mt-2 text-xs text-slate-500">{formatDateTime(integration.observedAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No verified external integration receipts indexed yet." />
+              )}
+            </Panel>
+
+            <Panel title="Partner Candidates" icon={<Handshake size={18} />} subtitle="Live registered ecosystem apps observed by the indexer; not all are integrated yet.">
               {partners.length > 0 ? (
                 <div className="grid gap-3 md:grid-cols-2">
                   {partners.slice(0, 6).map((partner) => (

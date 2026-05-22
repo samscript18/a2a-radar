@@ -11,6 +11,9 @@ const repoRoot = resolve(process.env.RADAR_REPO_ROOT ?? dirname(fileURLToPath(im
 const snapshotPath = process.env.RADAR_SNAPSHOT
   ? resolve(process.env.RADAR_SNAPSHOT)
   : resolve(repoRoot, "artifacts/latest-snapshot.json");
+const growthReceiptsPath = process.env.RADAR_GROWTH_RECEIPTS
+  ? resolve(process.env.RADAR_GROWTH_RECEIPTS)
+  : resolve(repoRoot, "artifacts/deploy/growth-loop-receipts.json");
 
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -19,6 +22,42 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
 
 async function readSnapshot() {
   return JSON.parse(await readFile(snapshotPath, "utf8")) as Record<string, unknown>;
+}
+
+async function readGrowthReceiptSummary() {
+  const raw = await readFile(growthReceiptsPath, "utf8");
+  const cycles = JSON.parse(raw) as Array<{
+    startedAt?: string;
+    completedAt?: string;
+    receipts?: Record<string, { messageId?: string; txHash?: string; result?: unknown }>;
+  }>;
+  const latest = cycles.at(-1);
+  if (!latest) {
+    return {
+      exists: false,
+      callsExecuted: 0,
+      skipped: true,
+      boardAnnouncementId: null,
+      treasuryDeltaRaw: "0"
+    };
+  }
+  const receipts = latest.receipts ?? {};
+  const callsExecuted = Object.values(receipts).filter((receipt) => receipt.messageId || receipt.txHash).length;
+  const boardResult = receipts.boardAnnouncement?.result;
+  const treasuryDeltaRaw = [
+    receipts.marketPaidRecommendation?.messageId ? 10_000_000_000n : 0n,
+    receipts.marketSubscription?.messageId ? 25_000_000_000n : 0n
+  ].reduce((sum, item) => sum + item, 0n);
+
+  return {
+    exists: true,
+    startedAt: latest.startedAt,
+    completedAt: latest.completedAt,
+    callsExecuted,
+    skipped: callsExecuted === 0,
+    boardAnnouncementId: typeof boardResult === "string" ? boardResult : null,
+    treasuryDeltaRaw: treasuryDeltaRaw.toString()
+  };
 }
 
 function runIndexChain() {
@@ -146,6 +185,15 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       sendJson(response, 200, discoverPayload(await readSnapshot()));
     } catch {
       sendJson(response, 503, { ok: false, error: "snapshot unavailable; index real chain events first" });
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/growth-receipt") {
+    try {
+      sendJson(response, 200, await readGrowthReceiptSummary());
+    } catch {
+      sendJson(response, 503, { ok: false, error: "growth receipt unavailable; run a growth cycle first" });
     }
     return;
   }
