@@ -148,20 +148,27 @@ if (!walletExists(walletsBefore)) {
 
 		if (support.jsonFlag) {
 			console.log("Wallet import mode: keyring-path");
-			const ok = tryWalletImport(["wallet", "import", ...nameArgs, support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
-			if (!ok) {
+			const okWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
+			const okWithoutName = okWithName || nameArgs.length === 0 ? okWithName : tryWalletImport(["wallet", "import", support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
+			if (!okWithoutName) {
 				if (!support.stdinFlag) {
 					throw new Error("wallet import rejected the JSON path and does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
 				}
 				console.log("Wallet import mode: keyring-stdin");
-				runWallet(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], { capture: true, input: importConfig.keyringJson });
+				const okStdinWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], importConfig.keyringJson);
+				if (!okStdinWithName && nameArgs.length > 0) {
+					runWallet(["wallet", "import", support.stdinFlag, ...encryptionArgs], { capture: true, input: importConfig.keyringJson });
+				}
 			}
 		} else {
 			console.log("Wallet import mode: keyring-stdin");
 			if (!support.stdinFlag) {
 				throw new Error("wallet import does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
 			}
-			runWallet(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], { capture: true, input: importConfig.keyringJson });
+			const okStdinWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], importConfig.keyringJson);
+			if (!okStdinWithName && nameArgs.length > 0) {
+				runWallet(["wallet", "import", support.stdinFlag, ...encryptionArgs], { capture: true, input: importConfig.keyringJson });
+			}
 		}
 	} else {
 		console.log(`Wallet import mode: ${importConfig.kind}`);
