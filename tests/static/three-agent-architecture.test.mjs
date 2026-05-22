@@ -26,9 +26,9 @@ test("workspace exposes exactly three deployable Sails programs", () => {
 test("mainnet registration manifest contains exactly three applications", () => {
   const manifest = JSON.parse(readFileSync("deploy/mainnet/programs.json", "utf8"));
   assert.deepEqual(Object.keys(manifest).sort(), ["radarBroadcast", "radarCore", "radarMarket"]);
-  assert.equal(manifest.radarCore.handle, "@a2a-radar-core");
-  assert.equal(manifest.radarBroadcast.handle, "@a2a-radar-broadcast");
-  assert.equal(manifest.radarMarket.handle, "@a2a-radar-market");
+  assert.equal(manifest.radarCore.handle, "a2a-radar-core");
+  assert.equal(manifest.radarBroadcast.handle, "a2a-radar-broadcast");
+  assert.equal(manifest.radarMarket.handle, "a2a-radar-market");
 });
 
 test("dashboard fallback is empty and not simulated", () => {
@@ -36,4 +36,3 @@ test("dashboard fallback is empty and not simulated", () => {
   assert.match(fallback, /emptySnapshot/);
   assert.doesNotMatch(fallback, /@varabridge|@hy4|simulat/i);
 });
-

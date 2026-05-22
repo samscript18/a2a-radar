@@ -1,0 +1,19 @@
+name: A2A Radar Growth Cycle
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger-growth-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger secured growth endpoint
+        run: |
+          curl --fail-with-body -sS -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
+            -H "Authorization: Bearer $GROWTH_API_SECRET" \
+            -H "Content-Type: application/json"
+        env:
+          GROWTH_API_URL: ${{ secrets.GROWTH_API_URL }}
+          GROWTH_API_SECRET: ${{ secrets.GROWTH_API_SECRET }}

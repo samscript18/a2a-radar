@@ -4,9 +4,15 @@ frontend/.next/
 apps/dashboard/.next/
 apps/dashboard/.next-current/
 apps/dashboard/tsconfig.tsbuildinfo
+apps/api/tsconfig.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
 target/
 dist/
 *.log
 .env
 .env.local
+artifacts/deploy/
+artifacts/latest-snapshot.json
+deploy/generated/
+tools/vara-wallet-patched/
+programs/*/.binpath

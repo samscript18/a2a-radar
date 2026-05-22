@@ -7,15 +7,30 @@
     "check": "npm run check --workspaces --if-present",
     "dev": "npm run dev --workspace @a2a-radar/dashboard",
     "api": "npm run dev --workspace @a2a-radar/api",
-    "test": "node --test tests/**/*.test.mjs",
+    "api:dev": "npm run dev --workspace @a2a-radar/api",
+    "api:start": "npm run start --workspace @a2a-radar/api",
+    "test": "NODE_ENV=test node --import tsx --test tests/**/*.test.mjs",
     "build:all": "node scripts/build-all.mjs",
-    "build:wasm": "cargo build --target wasm32-unknown-unknown --workspace --release",
+    "build:wasm": "cargo build --target wasm32v1-none --release -p a2a-radar-core-program -p a2a-radar-broadcast-program -p a2a-radar-market-program",
     "idl:generate": "cargo run -p a2a-radar-idl-gen",
     "deploy:dry-run": "node scripts/deploy-three-agents.mjs --dry-run",
     "deploy:mainnet": "node scripts/deploy-three-agents.mjs",
+    "wallet:status": "node scripts/refresh-wallet-status.mjs",
+    "wallet:wait-funded": "node scripts/wait-funded.mjs",
+    "voucher:claim": "node scripts/get-voucher.mjs",
+    "claim:instructions": "node scripts/claim-instructions.mjs",
+    "registry:prepare": "node scripts/prepare-registry-payloads.mjs",
+    "register:participant": "node scripts/register-operator-participant.mjs",
     "register:mainnet": "node scripts/register-three-agents.mjs",
+    "board:set-identities": "node scripts/set-board-identities.mjs",
     "wire:mainnet": "node scripts/wire-three-agents.mjs",
+    "smoke:mainnet": "node scripts/smoke-live-flow.mjs",
+    "growth:once": "node scripts/autonomous-growth-loop.mjs --once",
+    "growth:daemon": "node scripts/autonomous-growth-loop.mjs",
+    "growth:api:test": "node scripts/test-growth-api.mjs",
+    "validate:calls": "node scripts/validate-call-encoding.mjs",
     "index:chain": "node scripts/index-chain-events.mjs",
+    "deployment:status": "node scripts/deployment-status.mjs",
     "onboarding:checklist": "node scripts/onboarding-checklist.mjs",
     "vara:commands": "node scripts/vara-commands.mjs",
     "rust:check": "node scripts/rust-check.mjs"
@@ -23,5 +38,8 @@
   "workspaces": [
     "apps/*",
     "packages/*/typescript"
-  ]
+  ],
+  "devDependencies": {
+    "wasm-opt": "^1.4.0"
+  }
 }

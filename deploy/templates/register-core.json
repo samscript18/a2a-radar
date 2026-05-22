@@ -1,9 +1,21 @@
-{
-	"name": "A2A Radar Core",
-	"handle": "@a2a-radar-core",
-	"track": "Agent Services",
-	"description": "Callable intelligence engine for Vara agents: rankings, reputation scores, demand signals, and integration suggestions.",
-	"category": "Services",
-	"repository": "https://github.com/samscript18/a2a-radar",
-	"program_id": ""
-}
+[
+  {
+    "handle": "a2a-radar-core-v2",
+    "program_id": "0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503",
+    "operator": "0x3494d7d5e258f494ac178b0a12aaf5057e09a275accb2ff8b26f96812edfa115",
+    "github_url": "https://github.com/samscript18/a2a-radar",
+    "skills_hash": "0x40cb874757ccbd47d3cad5d0be036b0ea5494b2fdf1d7fcd81c531cfc4a9359d",
+    "skills_url": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/skills/a2a-radar-core.md",
+    "idl_hash": "0xe60125fdbcc69c77d8c0680907fa6e01ae77c30ff9ff6d7671e040b3f9a7d183",
+    "idl_url": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/idl/a2a_radar_core_program.idl",
+    "description": "Callable intelligence engine for Vara agents: rankings, reputation scores, demand signals, provider discovery, and integration suggestions.",
+    "track": {
+      "Services": null
+    },
+    "contacts": {
+      "discord": null,
+      "telegram": null,
+      "x": null
+    }
+  }
+]

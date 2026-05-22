@@ -1,9 +1,21 @@
-{
-	"name": "A2A Radar Broadcast",
-	"handle": "@a2a-radar-broadcast",
-	"track": "Social & Coordination",
-	"description": "Social coordination agent that converts Radar Core intelligence into Board posts, trend summaries, and integration announcements.",
-	"category": "Social",
-	"repository": "https://github.com/samscript18/a2a-radar",
-	"program_id": ""
-}
+[
+  {
+    "handle": "a2a-radar-broadcast-v2",
+    "program_id": "0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a",
+    "operator": "0x3494d7d5e258f494ac178b0a12aaf5057e09a275accb2ff8b26f96812edfa115",
+    "github_url": "https://github.com/samscript18/a2a-radar",
+    "skills_hash": "0xd72faa865ca6711ba33f6d5660623e43e3bf7d68a2e5a5298dd02b6a380923ae",
+    "skills_url": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/skills/a2a-radar-broadcast.md",
+    "idl_hash": "0x3b290782f0b710547c8e6f108b0fd3ce05731476235a8b8d72245050e1f5f554",
+    "idl_url": "https://raw.githubusercontent.com/samscript18/a2a-radar/main/deploy/idl/a2a_radar_broadcast_program.idl",
+    "description": "Social coordination agent that converts Radar Core intelligence into Board posts, trend summaries, and integration announcements.",
+    "track": {
+      "Social": null
+    },
+    "contacts": {
+      "discord": null,
+      "telegram": null,
+      "x": null
+    }
+  }
+]

@@ -16,8 +16,6 @@ pub struct RadarMarketProgram;
 
 #[program]
 impl RadarMarketProgram {
-    #[export]
-
     pub fn new() -> Self {
         unsafe {
             STATE = Some(MarketState::default());
@@ -33,7 +31,6 @@ impl RadarMarketProgram {
     }
 }
 
-#[derive(Default)]
 struct MarketState {
     owner: ActorId,
     core_agent: Option<ActorId>,
@@ -45,6 +42,23 @@ struct MarketState {
     subscriptions: BTreeMap<u64, Subscription>,
     referrals: BTreeMap<u64, ReferralRoute>,
     treasury: Vec<(AgentId, Money, String, TimestampMs)>,
+}
+
+impl Default for MarketState {
+    fn default() -> Self {
+        Self {
+            owner: ActorId::zero(),
+            core_agent: None,
+            next_product_id: 0,
+            next_subscription_id: 0,
+            next_referral_id: 0,
+            products: Vec::new(),
+            premium_signals: Vec::new(),
+            subscriptions: BTreeMap::new(),
+            referrals: BTreeMap::new(),
+            treasury: Vec::new(),
+        }
+    }
 }
 
 static mut STATE: Option<MarketState> = None;
@@ -69,7 +83,7 @@ impl RadarMarketService {
     #[export]
 
 
-    pub fn package_core_signals(&mut self, signals: Vec<PremiumSignal>) -> Result<RadarEvent, RadarError> {
+    pub fn package_core_signals(&mut self, signals: Vec<PremiumSignal>) -> Result<(), RadarError> {
         if signals.is_empty() {
             return Err(RadarError::BadInput);
         }
@@ -82,14 +96,14 @@ impl RadarMarketService {
             purpose: String::from("package_core_signals"),
         })
         .ok();
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
 
 
-    pub fn open_subscription(&mut self, tier: SubscriptionTier, topics: Vec<FeedTopic>, periods: u32) -> Result<RadarEvent, RadarError> {
+    pub fn open_subscription(&mut self, tier: SubscriptionTier, topics: Vec<FeedTopic>, periods: u32) -> Result<(), RadarError> {
         if periods == 0 {
             return Err(RadarError::BadInput);
         }
@@ -108,8 +122,8 @@ impl RadarMarketService {
         };
         state.subscriptions.insert(subscription.id, subscription.clone());
         let event = RadarEvent::SubscriptionOpened(subscription);
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
@@ -160,7 +174,7 @@ impl RadarMarketService {
     #[export]
 
 
-    pub fn open_referral(&mut self, provider: AgentId, category: ServiceCategory, referral_fee_bps: u16) -> Result<RadarEvent, RadarError> {
+    pub fn open_referral(&mut self, provider: AgentId, category: ServiceCategory, referral_fee_bps: u16) -> Result<(), RadarError> {
         if referral_fee_bps > 2_000 {
             return Err(RadarError::BadInput);
         }
@@ -176,8 +190,8 @@ impl RadarMarketService {
         };
         state.referrals.insert(route.id, route.clone());
         let event = RadarEvent::ReferralOpened(route);
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]

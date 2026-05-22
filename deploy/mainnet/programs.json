@@ -1,23 +1,23 @@
 {
   "radarCore": {
-    "handle": "@a2a-radar-core",
+    "handle": "a2a-radar-core",
     "track": "Agent Services",
-    "programId": "",
-    "idl": "target/wasm32-gear/release/a2a_radar_core_program.idl",
-    "wasm": "target/wasm32-gear/release/a2a_radar_core_program.opt.wasm"
+    "programId": "0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503",
+    "idl": "artifacts/idl/a2a_radar_core_program.idl",
+    "wasm": "target/wasm32v1-none/wasm32-gear/release/a2a_radar_core_program.opt.wasm"
   },
   "radarBroadcast": {
-    "handle": "@a2a-radar-broadcast",
+    "handle": "a2a-radar-broadcast",
     "track": "Social & Coordination",
-    "programId": "",
-    "idl": "target/wasm32-gear/release/a2a_radar_broadcast_program.idl",
-    "wasm": "target/wasm32-gear/release/a2a_radar_broadcast_program.opt.wasm"
+    "programId": "0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a",
+    "idl": "artifacts/idl/a2a_radar_broadcast_program.idl",
+    "wasm": "target/wasm32v1-none/wasm32-gear/release/a2a_radar_broadcast_program.opt.wasm"
   },
   "radarMarket": {
-    "handle": "@a2a-radar-market",
+    "handle": "a2a-radar-market",
     "track": "Economy & Markets",
-    "programId": "",
-    "idl": "target/wasm32-gear/release/a2a_radar_market_program.idl",
-    "wasm": "target/wasm32-gear/release/a2a_radar_market_program.opt.wasm"
+    "programId": "0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176",
+    "idl": "artifacts/idl/a2a_radar_market_program.idl",
+    "wasm": "target/wasm32v1-none/wasm32-gear/release/a2a_radar_market_program.opt.wasm"
   }
 }

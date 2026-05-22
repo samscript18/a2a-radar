@@ -12,3 +12,6 @@ a2a-radar-types = { path = "../../packages/protocol/rust" }
 gstd.workspace = true
 sails-rs.workspace = true
 
+[build-dependencies]
+gear-wasm-builder = "1.10.0"
+

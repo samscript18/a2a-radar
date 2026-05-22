@@ -15,8 +15,6 @@ pub struct RadarBroadcastProgram;
 
 #[program]
 impl RadarBroadcastProgram {
-    #[export]
-
     pub fn new() -> Self {
         unsafe {
             STATE = Some(BroadcastState::default());
@@ -32,7 +30,6 @@ impl RadarBroadcastProgram {
     }
 }
 
-#[derive(Default)]
 struct BroadcastState {
     owner: ActorId,
     core_agent: Option<ActorId>,
@@ -41,6 +38,20 @@ struct BroadcastState {
     messages: Vec<BroadcastMessage>,
     demand_feedback: Vec<InteractionSignal>,
     sequence: u64,
+}
+
+impl Default for BroadcastState {
+    fn default() -> Self {
+        Self {
+            owner: ActorId::zero(),
+            core_agent: None,
+            board_agent: None,
+            chat_agent: None,
+            messages: Vec::new(),
+            demand_feedback: Vec::new(),
+            sequence: 0,
+        }
+    }
 }
 
 static mut STATE: Option<BroadcastState> = None;
@@ -66,7 +77,7 @@ impl RadarBroadcastService {
     #[export]
 
 
-    pub fn consume_core_report(&mut self, report: EcosystemReport) -> Result<RadarEvent, RadarError> {
+    pub fn consume_core_report(&mut self, report: EcosystemReport) -> Result<(), RadarError> {
         let message = format_report(&report);
         state_mut().messages.push(message.clone());
         let event = RadarEvent::BoardMessageQueued {
@@ -79,14 +90,14 @@ impl RadarBroadcastService {
             purpose: String::from("consumed_core_report"),
         })
         .ok();
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
 
 
-    pub fn publish_trend_summary(&mut self) -> Result<RadarEvent, RadarError> {
+    pub fn publish_trend_summary(&mut self) -> Result<(), RadarError> {
         let state = state_mut();
         let latest = state.messages.last().cloned().unwrap_or(BroadcastMessage {
             title: String::from("A2A Radar ecosystem pulse"),
@@ -99,14 +110,14 @@ impl RadarBroadcastService {
             topic: latest.topic,
             body: latest.body,
         };
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
 
 
-    pub fn announce_integration(&mut self, provider: ActorId, summary: String) -> Result<RadarEvent, RadarError> {
+    pub fn announce_integration(&mut self, provider: ActorId, summary: String) -> Result<(), RadarError> {
         if summary.is_empty() {
             return Err(RadarError::BadInput);
         }
@@ -123,8 +134,8 @@ impl RadarBroadcastService {
             source_report: None,
             created_at_ms: now(),
         });
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
@@ -135,7 +146,7 @@ impl RadarBroadcastService {
         category: ServiceCategory,
         weight: u32,
         note: String,
-    ) -> Result<RadarEvent, RadarError> {
+    ) -> Result<(), RadarError> {
         if weight == 0 || note.is_empty() {
             return Err(RadarError::BadInput);
         }
@@ -160,8 +171,8 @@ impl RadarBroadcastService {
             purpose: String::from("demand_feedback"),
         })
         .ok();
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
@@ -181,7 +192,7 @@ impl RadarBroadcastService {
     #[export]
 
 
-    pub fn queue_chat_alert(&mut self, body: String) -> Result<RadarEvent, RadarError> {
+    pub fn queue_chat_alert(&mut self, body: String) -> Result<(), RadarError> {
         if body.is_empty() {
             return Err(RadarError::BadInput);
         }
@@ -189,8 +200,8 @@ impl RadarBroadcastService {
             priority: Priority::High,
             body,
         };
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 }
 

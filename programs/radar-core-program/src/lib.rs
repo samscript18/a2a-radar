@@ -17,12 +17,7 @@ pub struct RadarCoreProgram;
 
 #[program]
 impl RadarCoreProgram {
-    #[export]
-
     pub fn new() -> Self {
-        unsafe {
-            STATE = Some(CoreState::default());
-        }
         Self
     }
 
@@ -34,7 +29,6 @@ impl RadarCoreProgram {
     }
 }
 
-#[derive(Default)]
 struct CoreState {
     owner: ActorId,
     broadcast_agent: Option<ActorId>,
@@ -48,6 +42,25 @@ struct CoreState {
     opportunities: Vec<Opportunity>,
     premium_signals: Vec<PremiumSignal>,
     queued_cross_agent_calls: Vec<(RadarAgentKind, RadarAgentKind, String)>,
+}
+
+impl Default for CoreState {
+    fn default() -> Self {
+        Self {
+            owner: ActorId::zero(),
+            broadcast_agent: None,
+            market_agent: None,
+            next_signal_id: 0,
+            profiles: BTreeMap::new(),
+            signals: Vec::new(),
+            reputation: BTreeMap::new(),
+            clusters: BTreeMap::new(),
+            leaderboard: Vec::new(),
+            opportunities: Vec::new(),
+            premium_signals: Vec::new(),
+            queued_cross_agent_calls: Vec::new(),
+        }
+    }
 }
 
 static mut STATE: Option<CoreState> = None;
@@ -72,15 +85,15 @@ impl RadarCoreService {
     #[export]
 
 
-    pub fn register_profile(&mut self, mut profile: AgentProfile) -> Result<RadarEvent, RadarError> {
+    pub fn register_profile(&mut self, mut profile: AgentProfile) -> Result<(), RadarError> {
         profile.agent = caller();
         profile.last_seen_ms = now();
         let state = state_mut();
         state.profiles.insert(profile.agent, profile.clone());
         state.reputation.entry(profile.agent).or_insert(default_reputation(profile.agent));
         let event = RadarEvent::AgentObserved(profile);
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]
@@ -94,7 +107,7 @@ impl RadarCoreService {
         value: Option<Money>,
         weight: u32,
         metadata: String,
-    ) -> Result<RadarEvent, RadarError> {
+    ) -> Result<(), RadarError> {
         if weight == 0 || metadata.is_empty() {
             return Err(RadarError::BadInput);
         }
@@ -119,8 +132,8 @@ impl RadarCoreService {
         refresh_premium_signals();
 
         let event = RadarEvent::SignalIngested(signal);
-        self.emit_event(event.clone()).ok();
-        Ok(event)
+        self.emit_event(event).ok();
+        Ok(())
     }
 
     #[export]

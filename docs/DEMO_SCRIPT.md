@@ -1,5 +1,15 @@
 # Demo Script
 
+Pre-demo chain setup:
+
+1. `npm run wallet:status`
+2. `npm run voucher:claim`
+3. `REGISTRY_PID=<registry> IDL=<registry-idl> npm run register:participant`
+4. `npm run claim:instructions`
+5. Claim 100 VARA on the hackathon site and run `npm run wallet:wait-funded`.
+6. `npm run deploy:mainnet`
+7. `OPERATOR_HEX=<wallet-hex> REGISTRY_PID=<registry> IDL=<registry-idl> npm run register:mainnet`
+
 60-second demo:
 
 1. Show the three registered Applications: Core, Broadcast, Market.
