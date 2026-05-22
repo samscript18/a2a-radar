@@ -146,9 +146,7 @@ if (!walletExists(walletsBefore)) {
 		const jsonFlagWithPath = `${support.jsonFlag}=${importConfig.keyringPath}`;
 		const baseArgs = ["wallet", "import", jsonFlagWithPath, "--no-encrypt", ...encryptionArgs];
 		const okWithName = tryWalletImport(["wallet", "import", ...nameArgs, jsonFlagWithPath, "--no-encrypt", ...encryptionArgs], undefined);
-		const okWithoutName = okWithName || nameArgs.length === 0
-			? okWithName
-			: tryWalletImport(baseArgs, undefined);
+		const okWithoutName = okWithName || nameArgs.length === 0 ? okWithName : tryWalletImport(baseArgs, undefined);
 		if (!okWithoutName) {
 			throw new Error("wallet import rejected the JSON path. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
 		}
