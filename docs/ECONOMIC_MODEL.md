@@ -1,27 +1,48 @@
 # Economic Model
 
-A2A Radar monetizes useful intelligence at very low prices so agents can call it repeatedly without friction.
+A2A Radar monetizes intelligence through small, repeatable VARA payments.
 
-## Revenue Lines
+## Problem
 
-- Provider lookup: cents-level VARA micropayment.
-- Pulse feed: low cents per period for demand spikes and leaderboard deltas.
-- Pro feed: low cents per period for deeper recommendations and sector heatmaps.
-- Referral routing: small basis-point fee when a provider receives a routed opportunity.
-- Sponsorship: opt-in visibility for verified providers, clearly separated from trust score.
+Agent ecosystems need paid information, but high prices kill experimentation.
 
-## Loops
+## Solution
 
-Provider Discovery:
-consumer request -> provider match -> referral route -> provider fee -> successful integration -> leaderboard update -> Board announcement.
+Keep fees low enough that agents can subscribe, test, and route opportunities repeatedly.
 
-Market Intelligence:
-signal spike -> opportunity broadcast -> providers respond -> subscription purchase -> trend score update -> recurring feed demand.
+## Live Revenue Lines
 
-Ecosystem Rankings:
-activity observed -> leaderboard published -> integrations increase -> calls/payments grow -> stronger social proof.
+- Pulse subscriptions through Market.
+- Paid integration recommendations through Market.
+- Premium signals packaged from Core intelligence.
+- Referral routes for provider discovery.
 
-## Pricing Guardrail
+## Economic Loop
 
-The protocol should prefer volume and network utility over extraction. Subscriptions should remain cents-level, with the free tier preserving broad discovery.
+```text
+Core detects demand
+↓
+Market packages signal
+↓
+User pays small VARA amount
+↓
+Market treasury updates
+↓
+Market reports purchase to Core
+↓
+Core demand score improves
+```
+
+## Why It Matters
+
+Micropayments prove that A2A Radar is not just analytics. It is an economic routing layer.
+
+The current live treasury includes real micropayment activity.
+
+## Guardrails
+
+- keep subscriptions low-cost
+- preserve free discovery paths
+- avoid paywalls for basic ecosystem visibility
+- report payments back to Core for demand scoring
 

@@ -1,111 +1,127 @@
 # Architecture
 
-A2A Radar is exactly three independently deployable Vara Sails Applications.
+A2A Radar is a live 3-agent Vara protocol.
 
-## Agent 1: Radar Core
+It is not a dashboard-only app. The dashboard is the window into three deployed Sails applications that call, update, and monetize one another.
+
+## Canonical Agents
+
+| Agent | Track | Program |
+| --- | --- | --- |
+| `a2a-radar-core-v2` | Agent Services | `0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503` |
+| `a2a-radar-broadcast-v2` | Social & Coordination | `0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a` |
+| `a2a-radar-market-v2` | Economy & Markets | `0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176` |
+
+## Problem
+
+Agent ecosystems need three things at once:
+
+- discovery: which agents are useful right now?
+- coordination: what should the ecosystem do next?
+- monetization: which intelligence is valuable enough to pay for?
+
+## Solution
+
+```text
+Core
+↓
+Broadcast
+↓
+Market
+↓
+Treasury
+↓
+Core
+```
+
+Core turns activity into intelligence. Broadcast turns intelligence into coordination. Market turns intelligence into paid products. Payments and demand reports flow back to Core.
+
+## Agent Responsibilities
+
+### Core
 
 Path: `programs/radar-core-program`
 
-Track: Agent Services
+Core is the intelligence engine.
 
-Responsibilities:
+Services:
 
-- ingest real ecosystem events
-- compute reputation scores
-- rank agents
-- detect demand signals and opportunities
-- expose repeated-call intelligence APIs
-- provide premium signals for Radar Market
-- provide reports for Radar Broadcast
+- `Core/IngestEvent`
+- `Core/Ranking`
+- `Core/ReputationScore`
+- `Core/DemandSignals`
+- `Core/DiscoverProviders`
+- `Core/IntegrationSuggestions`
+- `Core/ReportForBroadcast`
+- `Core/PremiumSignalsForMarket`
 
-Core callable services include:
-
-- `RegisterProfile`
-- `IngestEvent`
-- `Ranking`
-- `ReputationScore`
-- `DemandSignals`
-- `IntegrationSuggestions`
-- `DiscoverProviders`
-- `ReportForBroadcast`
-- `PremiumSignalsForMarket`
-
-## Agent 2: Radar Broadcast
+### Broadcast
 
 Path: `programs/radar-broadcast-program`
 
-Track: Social & Coordination
+Broadcast is the coordination surface.
 
-Responsibilities:
+Services:
 
-- consume Core reports
-- format Board-ready trend summaries
-- announce integrations
-- generate demand feedback signals for Core
-- queue Chat alerts
+- `Broadcast/ConsumeCoreReport`
+- `Broadcast/PublishTrendSummary`
+- `Broadcast/AnnounceIntegration`
+- `Broadcast/TriggerDemandFeedback`
+- `Broadcast/QueueChatAlert`
 
-Broadcast callable services include:
-
-- `Configure`
-- `ConsumeCoreReport`
-- `PublishTrendSummary`
-- `AnnounceIntegration`
-- `TriggerDemandFeedback`
-- `QueueChatAlert`
-
-## Agent 3: Radar Market
+### Market
 
 Path: `programs/radar-market-program`
 
-Track: Economy & Markets
+Market is the economy layer.
 
-Responsibilities:
+Services:
 
-- package Core premium signals
-- sell low-cost subscriptions
-- sell pay-per-signal access
-- open referral routes
-- record treasury totals
+- `Market/PackageCoreSignals`
+- `Market/OpenSubscription`
+- `Market/BuyPremiumSignal`
+- `Market/PaidIntegrationRecommendation`
+- `Market/OpenReferral`
+- `Market/TreasuryTotal`
 
-Market callable services include:
-
-- `Configure`
-- `PackageCoreSignals`
-- `OpenSubscription`
-- `BuyPremiumSignal`
-- `PaidIntegrationRecommendation`
-- `OpenReferral`
-- `TreasuryTotal`
-
-## Required Cross-Agent Flows
-
-Core -> Broadcast:
-Core emits `EcosystemReportPublished`; Broadcast consumes the report and emits `BoardMessageQueued`.
-
-Broadcast -> Core:
-Broadcast emits `SignalIngested` with `DemandRequest`; Core ingests that signal and updates rankings/clusters.
-
-Core -> Market:
-Core exposes `PremiumSignalsForMarket`; Market packages those into paid products and emits `PremiumSignalPackaged`.
-
-## Repository Shape
+## Cross-Agent Call Flow
 
 ```text
-apps/
-  api/
-  dashboard/
-deploy/
-docs/
-packages/
-  protocol/
-  sdk/
-programs/
-  radar-core-program/
-  radar-broadcast-program/
-  radar-market-program/
-scripts/
-tests/
+Broadcast requests report
+↓
+Core returns ecosystem intelligence
+↓
+Broadcast publishes trend summary
+↓
+Market requests premium signals
+↓
+Core returns paid signal candidates
+↓
+Market opens paid recommendation/subscription
+↓
+Market reports purchase back to Core
+↓
+Core updates demand, opportunities, and rankings
 ```
 
-No other Sails Applications are part of the final architecture.
+## Deployment Structure
+
+```text
+programs/   # deployed Sails applications
+apps/       # dashboard and secured growth API
+packages/   # shared protocol schemas
+scripts/    # deployment, smoke, growth, indexing
+docs/       # operator, judge, and developer docs
+```
+
+## Result
+
+A2A Radar creates repeatable Vara scoring signals:
+
+- incoming Core calls
+- outgoing cross-agent calls
+- Board activity
+- subscriptions
+- treasury movement
+- dashboard evidence
 

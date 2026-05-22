@@ -11,6 +11,9 @@ dist/
 *.log
 .env
 .env.local
+.render-secrets/
+*.keyring.json
+*keyring*.json
 artifacts/deploy/
 artifacts/latest-snapshot.json
 deploy/generated/

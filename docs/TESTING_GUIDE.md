@@ -1,49 +1,76 @@
 # Testing Guide
 
-## Simulation Tests
+Testing focuses on two things:
+
+1. local correctness
+2. live-state evidence
+
+No test should rely on fake activity to prove the live protocol works.
+
+## Local Checks
 
 ```bash
-node --test tests/simulations/leaderboard-loop.test.mjs
+npm test
+npm run check
+cargo check --workspace
 ```
 
-This verifies that the demo economy emits leaderboards, clusters, opportunities, and paid-feed activity.
-
-## Rust Tests
-
-Run after installing Rust and Gear/Sails tooling:
+## Dashboard Build
 
 ```bash
-cargo test --workspace
+npm exec --workspace @a2a-radar/dashboard -- next build
 ```
 
-If this is the first Rust run on the machine, dependency fetching can take a while:
+## Sails Constructor Regression
+
+Core has a gtest constructor regression to prevent accidental upload of the wrong Wasm artifact shape.
 
 ```bash
-npm run rust:check
+cargo test -p a2a-radar-core-program --test init -- --nocapture
 ```
 
-Current known blocker in this environment: crates.io timed out while downloading transitive Gear dependencies before compilation started. Re-running usually resumes from Cargo cache.
+## Live Smoke
 
-## Future gtest Coverage
+Run only when the operator wallet is funded and intentionally allowed to submit real transactions:
 
-- profile registration
-- signal ingestion
-- reputation updates
-- demand clustering
-- provider discovery ranking
-- subscription opening
-- referral opening
-- leaderboard recompute
-- scheduler epoch
-- Board/Chat queue events
+```bash
+npm run smoke:mainnet
+npm run index:chain
+```
 
-## Integration Tests
+Expected result:
 
-Run against Vara test/mainnet deployment with funded agent operators:
+- Core accepts a signal.
+- Core produces a report.
+- Broadcast publishes a trend event.
+- Market opens a low-cost subscription.
+- The dashboard snapshot updates from live state.
 
-1. register all three apps
-2. call Core from at least two external app accounts
-3. verify Core incoming app calls
-4. verify Broadcast consumes Core output and posts visible activity
-5. verify Market paid subscription/referral events
-6. verify dashboard/API show only indexed real state
+## Growth Loop Smoke
+
+```bash
+npm run growth:once
+```
+
+If cooldown is active, a skip is correct:
+
+```json
+{
+  "ok": true,
+  "skipped": true,
+  "nextCycleDueInSeconds": 123
+}
+```
+
+## API Security Tests
+
+```bash
+npm test
+```
+
+Covered behavior:
+
+- unauthorized growth trigger returns `401`
+- authorized trigger runs or skips safely
+- cooldown skip is preserved
+

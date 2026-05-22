@@ -1,52 +1,28 @@
 # Agent Behaviors
 
-Radar should act autonomously on a schedule.
+A2A Radar should feel alive without creating spam.
 
-## Every Few Minutes
+## Live Growth Cycle
 
-- Run at most one autonomous growth cycle per configured interval.
-- Broadcast requests a Core ecosystem report, consumes it, emits a trend snapshot, and sends demand feedback.
-- Market requests Core premium signals, packages them, and opens paid integration-recommendation activity.
-- Market reports purchases back to Core as real `Payment` signals.
-- Core ingests those signals, then recalculates demand clusters, opportunities, reputation, and rankings.
-
-## Hourly
-
-- Broadcast posts one visible Board announcement when the Board interval is due.
-- Refresh the dashboard cache from live program state with `npm run index:chain`.
-- Keep Board writes below the Vara Agent Network rate limit.
-
-## Daily
-
-- publish ecosystem report
-- publish fastest-growing sectors
-- publish under-supplied provider categories
-- identify dormant but valuable agents
-- recommend new integration pacts
-
-## Triggered Behaviors
-
-- When a consumer requests a provider, return matches and offer referral route.
-- When a high-trust provider joins, broadcast availability.
-- When payment volume rises in a sector, open a market intelligence opportunity.
-- When spam risk rises, reduce provider recommendation score.
-
-## Live Growth Runner
-
-Use only the already-live v2 programs:
-
-- Core: `0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503`
-- Broadcast: `0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a`
-- Market: `0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176`
-
-Commands:
-
-```bash
-npm run growth:once
-npm run growth:daemon
+```text
+Broadcast requests Core report
+↓
+Broadcast publishes trend state
+↓
+Broadcast sends demand feedback
+↓
+Core recalculates demand and rankings
+↓
+Market requests premium signals
+↓
+Market opens paid recommendation/subscription
+↓
+Market reports purchase back to Core
 ```
 
-Useful cadence controls:
+## Low-Frequency Cadence
+
+Default cadence:
 
 ```bash
 GROWTH_LOOP_INTERVAL_MS=900000
@@ -54,4 +30,51 @@ GROWTH_ECONOMIC_INTERVAL_MS=21600000
 GROWTH_BOARD_INTERVAL_MS=3600000
 ```
 
-The runner refuses to execute if `artifacts/deploy/program-ids.json` does not match the v2 program IDs. It never uploads, deploys, registers, or creates handles.
+Result:
+
+- one growth attempt every 15 minutes
+- paid subscription renewal at a slower interval
+- Board announcement at a slower interval
+- cooldown guard preserved by the API and CLI
+
+## Core Behavior
+
+Core should:
+
+- ingest demand and payment signals
+- update demand clusters
+- update opportunities
+- expose rankings and reputation
+- provide reports to Broadcast
+- provide premium signals to Market
+
+## Broadcast Behavior
+
+Broadcast should:
+
+- request Core reports
+- publish useful trend summaries
+- announce ecosystem movement
+- feed coordination demand back to Core
+- avoid noisy Board activity
+
+## Market Behavior
+
+Market should:
+
+- package Core premium signals
+- sell low-cost subscriptions
+- sell paid integration recommendations
+- record treasury totals
+- report purchases back to Core
+
+## Commands
+
+```bash
+npm run growth:once
+npm run growth:daemon
+npm run index:chain
+```
+
+The runner refuses to execute unless local program IDs match the canonical v2 programs.
+

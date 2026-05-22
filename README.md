@@ -1,70 +1,162 @@
 # A2A Radar
 
-A2A Radar is a production-oriented 3-agent Vara autonomous economy protocol.
+**Autonomous intelligence, coordination, and market routing for Vara agents.**
 
-It deliberately deploys only three Sails Applications:
+**Status:** Live on Vara Mainnet  
+**Shape:** 3 deployed Sails applications  
+**Purpose:** Turn agent activity into rankings, ecosystem coordination, and low-cost market intelligence.
 
-- `a2a-radar-core`: Agent Services intelligence engine.
-- `a2a-radar-broadcast`: Social & Coordination broadcaster.
-- `a2a-radar-market`: Economy & Markets monetization agent.
+## Live Agent Network
 
-## Why This Shape
+### 🟣 `a2a-radar-core-v2`
 
-The system is optimized for hackathon scoring signals that matter on Vara: real inbound calls, real outbound/cross-agent calls, visible Board/Chat coordination, and at least one low-cost VARA economic loop.
+**Track:** Agent Services  
+**Program ID:** `0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503`
 
-## Monorepo
+Responsibilities:
 
-- `programs/radar-core-program`: rankings, reputation, demand signals, provider discovery, premium signal source.
-- `programs/radar-broadcast-program`: consumes Core reports, emits Board/Chat-ready events, sends demand feedback to Core.
-- `programs/radar-market-program`: subscriptions, premium signal purchase, referrals, treasury accounting.
-- `apps/dashboard`: minimal read surface for real indexed/on-chain state.
-- `apps/api`: snapshot API for the dashboard.
-- `packages/protocol`: shared Rust and TypeScript schemas.
-- `packages/sdk`: small read-model helpers.
-- `deploy/templates`: operator participant identity plus three application registration payloads.
-- `docs`: deployment, message flows, economics, and starter-kit alignment.
+- rankings
+- reputation
+- intelligence APIs
+- demand signals
 
-## Required Demo Loop
+### 🟢 `a2a-radar-broadcast-v2`
 
-1. Create/use the operator wallet and write `artifacts/deploy/wallet-status.json`.
-2. Get a gas voucher for Registry, Chat, and Board writes.
-3. Register the operator participant handle `a2a-radar` with the voucher. This does not require wallet VARA.
-4. Claim the hackathon 100 VARA X reward using the registered operator wallet address.
-5. Deploy and register `a2a-radar-core`, `a2a-radar-broadcast`, and `a2a-radar-market` as Applications after the wallet is funded.
-6. Configure Core with Broadcast and Market program IDs.
-7. Ingest real signals into Core from real agents or public Vara activity.
-8. Broadcast consumes a Core report and publishes a Board trend.
-9. Market packages Core premium signals.
-10. A real caller opens a low-cost subscription or buys a premium signal.
-11. Dashboard shows only indexed real state.
+**Track:** Social & Coordination  
+**Program ID:** `0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a`
 
-## Commands
+Responsibilities:
+
+- Board activity
+- ecosystem trends
+- coordination
+
+### 🟡 `a2a-radar-market-v2`
+
+**Track:** Economy & Markets  
+**Program ID:** `0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176`
+
+Responsibilities:
+
+- subscriptions
+- premium signals
+- treasury
+
+## Live System Flow
+
+```text
+Core generates intelligence
+↓
+Broadcast publishes trends
+↓
+Market packages signals
+↓
+Users subscribe
+↓
+Treasury updates
+↓
+Core recalculates rankings
+```
+
+## Why A2A Radar Exists
+
+### Problem: Discovery
+
+Agents need to know which other agents are active, reliable, useful, and worth calling.
+
+### Problem: Coordination
+
+Useful ecosystem movement is hard to see unless someone turns raw activity into Board updates, trend summaries, and integration prompts.
+
+### Problem: Monetization
+
+Intelligence should become an economic primitive: low-cost feeds, premium signals, referrals, and recurring payments.
+
+### Solution
+
+A2A Radar is the intelligence layer for the Vara agent economy:
+
+```text
+activity → signals → rankings → broadcasts → paid feeds → more activity
+```
+
+## Why This Wins on Vara
+
+A2A Radar is optimized for the behaviors Vara rewards:
+
+- ✔ inbound calls to Core intelligence APIs
+- ✔ cross-program interactions among live agents
+- ✔ recurring growth loops instead of one-time demos
+- ✔ Board activity through Broadcast
+- ✔ subscriptions and paid recommendations through Market
+- ✔ real treasury updates from micropayments
+
+## Monorepo Structure
+
+```text
+programs/
+  radar-core-program/       # Core intelligence and ranking Sails app
+  radar-broadcast-program/  # Broadcast and coordination Sails app
+  radar-market-program/     # Subscriptions, referrals, treasury Sails app
+
+apps/
+  dashboard/                # 60-second live demo control room
+  api/                      # Snapshot API and secured growth-cycle trigger
+
+packages/
+  protocol/                 # Shared Rust and TypeScript schemas
+  sdk/                      # Read-model helpers
+
+docs/
+  architecture, deployment, economics, demo, integration, operations
+```
+
+## Quick Start
+
+Essential commands:
 
 ```bash
-npm run check
-npm test
-npm run rust:check
-npm run build:wasm
-npm run idl:generate
-npm run wallet:status
-npm run voucher:claim
-npm run register:participant
+npm run onboarding:checklist
 npm run claim:instructions
 npm run wallet:wait-funded
-npm run deploy:dry-run
 npm run deploy:mainnet
 npm run register:mainnet
 npm run wire:mainnet
 npm run smoke:mainnet
 npm run index:chain
-npm run onboarding:checklist
-npm run vara:commands
 npm run dev
 ```
 
-No simulation engine is part of the final architecture.
+For the live v2 system, day-to-day growth is:
 
-## Live Deployment State
+```bash
+npm run growth:once
+npm run index:chain
+npm run dev
+```
+
+## Live Deployment
+
+Canonical v2 program IDs:
+
+```text
+Core:
+0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503
+
+Broadcast:
+0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a
+
+Market:
+0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176
+```
+
+Registered applications:
+
+- `a2a-radar-core-v2`
+- `a2a-radar-broadcast-v2`
+- `a2a-radar-market-v2`
+
+## Deployment Metadata
 
 Operator participant:
 
@@ -75,36 +167,19 @@ RegisterParticipant tx: 0xb741360fd952b605e9d5f1bcd465b2eea02a4663f717da540e6bfc
 block: 33146065
 ```
 
-Program IDs are written after upload to:
+Runtime artifacts:
 
 ```text
-artifacts/deploy/program-ids.json
+artifacts/deploy/program-ids.json       # local live program-id cache
+artifacts/latest-snapshot.json          # dashboard snapshot from live state
+artifacts/deploy/growth-loop-receipts.json
 ```
 
-Current corrected live program IDs:
+These local artifacts are ignored by Git.
 
-```text
-core:      0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503
-broadcast: 0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a
-market:    0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176
-```
+## Notes
 
-The first submitted application handles consumed `a2a-radar-core`,
-`a2a-radar-broadcast`, and `a2a-radar-market`. The corrected deployment was
-registered with `APP_HANDLE_SUFFIX=-v2`, producing `a2a-radar-core-v2`,
-`a2a-radar-broadcast-v2`, and `a2a-radar-market-v2`.
+The first submitted handles `a2a-radar-core`, `a2a-radar-broadcast`, and `a2a-radar-market` were consumed by an earlier deployment. The corrected and canonical live deployment is registered with the `-v2` handles above.
 
-Required environment variables for mainnet registration/wiring:
+Migration details are intentionally secondary. Judges and integrations should use the v2 program IDs listed in **Live Deployment**.
 
-```bash
-REGISTRY_PID=<vara registry program>
-IDL=<registry idl path>
-BOARD_PID=<board program>
-CHAT_PID=<chat program>
-```
-
-Run `npm run register:participant` before deployment and application registration. This matches the hackathon starter flow: operator participant first for the wallet persona and voucher path, then claim deploy funds, then deploy Sails dapps for callable integrations.
-
-`npm run deploy:mainnet` refuses to upload while the wallet balance is below `MIN_DEPLOY_BALANCE_RAW` so the scripts never assume deployment can happen before the 100 VARA claim.
-
-The dashboard reads `artifacts/latest-snapshot.json`, which must be produced from real chain events via `npm run index:chain`.

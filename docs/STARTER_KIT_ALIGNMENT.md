@@ -1,81 +1,77 @@
 # Starter Kit Alignment
 
-The hackathon starter flow has two shapes:
+A2A Radar follows the official Vara Agent Network shape:
 
-1. Operator participant: the wallet handle is the agent persona.
-2. Deployed Sails dapp: other agents can call the program.
+1. operator participant
+2. deployed Sails application
+3. registered application
+4. submitted application
+5. identity and Board activity
 
-A2A Radar uses both for all three agents.
+## Live Result
 
-## Install
-
-```bash
-npx skills add gear-foundation/vara-agent-network -g --all -y
-npx skills add gear-foundation/vara-skills -g --all -y
-npm install -g vara-wallet
-```
-
-## Onboard
+Operator participant:
 
 ```text
-Use vara-agent-network-skills to onboard me as a new participant.
+@a2a-radar
 ```
 
-Claim/register the three handles:
+Submitted applications:
 
-- operator participant: `@a2a-radar`
-- deployed app: `@a2a-radar-core`
-- deployed app: `@a2a-radar-broadcast`
-- deployed app: `@a2a-radar-market`
-
-Scripted participant registration:
-
-```bash
-REGISTRY_PID=<registry> IDL=<registry-idl> VOUCHER_ID=<voucher> npm run register:participant
+```text
+@a2a-radar-core-v2
+@a2a-radar-broadcast-v2
+@a2a-radar-market-v2
 ```
 
-## Deploy
+## Track Mapping
 
-Deploy exactly three Sails programs:
+| App | Track | Why |
+| --- | --- | --- |
+| Core | Agent Services | callable intelligence APIs |
+| Broadcast | Social & Coordination | Board updates and demand feedback |
+| Market | Economy & Markets | subscriptions, paid signals, treasury |
 
-- `programs/radar-core-program`
-- `programs/radar-broadcast-program`
-- `programs/radar-market-program`
+## Official Order
 
-Register each one:
-
-```bash
-vara-wallet call $PID Registry/RegisterApplication --args-file deploy/templates/register-core.json --voucher $VOUCHER_ID --idl $IDL
-vara-wallet call $PID Registry/RegisterApplication --args-file deploy/templates/register-broadcast.json --voucher $VOUCHER_ID --idl $IDL
-vara-wallet call $PID Registry/RegisterApplication --args-file deploy/templates/register-market.json --voucher $VOUCHER_ID --idl $IDL
+```text
+Create wallet
+↓
+Get voucher
+↓
+RegisterParticipant
+↓
+Claim hackathon VARA
+↓
+Deploy Sails apps
+↓
+RegisterApplication
+↓
+SubmitApplication
+↓
+Set identity
+↓
+Run live interactions
 ```
 
-Submit each application using the same payloads after program IDs are filled in.
-
-## Wire Cross-Agent Calls
+## Scripts
 
 ```bash
-npm run vara:commands
-```
-
-Set `PID`, `IDL`, `CORE_PID`, `BROADCAST_PID`, and `MARKET_PID` for concrete commands.
-
-For the scripted path:
-
-```bash
-npm run build:wasm
-npm run idl:generate
-REGISTRY_PID=<registry> IDL=<registry-idl> VOUCHER_ID=<voucher> npm run register:participant
+npm run onboarding:checklist
+npm run wallet:status
+npm run voucher:claim
+npm run register:participant
+npm run claim:instructions
+npm run wallet:wait-funded
 npm run deploy:mainnet
-OPERATOR_HEX=<wallet-hex> REGISTRY_PID=<registry> IDL=<registry-idl> VOUCHER_ID=<voucher> npm run register:mainnet
-REGISTRY_PID=<registry> IDL=<registry-idl> VOUCHER_ID=<voucher> npm run board:set-identities
-BOARD_PID=<board> CHAT_PID=<chat> npm run wire:mainnet
+npm run register:mainnet
+npm run board:set-identities
+npm run wire:mainnet
 npm run smoke:mainnet
 npm run index:chain
 ```
 
-## First Public Announcement
+## Note
 
-```text
-@a2a-radar-core, @a2a-radar-broadcast, and @a2a-radar-market are live: rankings, reputation, demand signals, Board trend posts, and low-cost paid signal feeds for Vara agents.
-```
+The canonical demo uses the v2 applications. The original non-v2 handles are historical and should not be used for judging or integration.
+

@@ -9,6 +9,7 @@
     "api": "npm run dev --workspace @a2a-radar/api",
     "api:dev": "npm run dev --workspace @a2a-radar/api",
     "api:start": "npm run start --workspace @a2a-radar/api",
+    "render:start": "node scripts/render-start.mjs",
     "test": "NODE_ENV=test node --import tsx --test tests/**/*.test.mjs",
     "build:all": "node scripts/build-all.mjs",
     "build:wasm": "cargo build --target wasm32v1-none --release -p a2a-radar-core-program -p a2a-radar-broadcast-program -p a2a-radar-market-program",

@@ -1,45 +1,86 @@
 # Message Flow
 
-All protocol messages share `packages/protocol/rust` and `packages/protocol/typescript`.
+All A2A Radar message types live in shared protocol packages:
 
-## Flow 1: Intelligence Loop
+- `packages/protocol/rust`
+- `packages/protocol/typescript`
 
-Core -> Broadcast
+## Intelligence Loop
 
-1. External agents call Core `IngestEvent`, `Ranking`, `DemandSignals`, or `DiscoverProviders`.
-2. Core updates reputation, demand clusters, opportunities, and cached leaderboard state.
-3. Broadcast calls/receives Core `ReportForBroadcast`.
-4. Broadcast emits `BoardMessageQueued` with a trend summary.
-5. Board write creates visible social activity.
+```text
+External activity
+↓
+Core/IngestEvent
+↓
+Core updates clusters, opportunities, rankings
+↓
+Core/ReportForBroadcast
+↓
+Broadcast/ConsumeCoreReport
+↓
+Broadcast/PublishTrendSummary
+```
 
-## Flow 2: Discovery Loop
+Result:
 
-Broadcast -> Core
+- Core receives inbound calls.
+- Broadcast creates coordination activity.
+- The dashboard indexes live reports.
 
-1. Broadcast detects or receives a hot social coordination topic.
-2. Broadcast calls `TriggerDemandFeedback`.
-3. Core ingests that demand signal through `IngestEvent`.
-4. Core rankings and demand clusters update.
-5. Agents repeatedly call Core for updated intelligence.
+## Discovery Loop
 
-## Flow 3: Monetization Loop
+```text
+Broadcast/TriggerDemandFeedback
+↓
+Core/IngestEvent
+↓
+Core/DemandSignals
+↓
+Core/IntegrationSuggestions
+```
 
-Core -> Market
+Result:
 
-1. Core exposes `PremiumSignalsForMarket`.
-2. Market calls `PackageCoreSignals`.
-3. A user calls `OpenSubscription`, `BuyPremiumSignal`, or `PaidIntegrationRecommendation`.
-4. Market records the low-cost VARA economic interaction.
-5. Market emits `PaymentCaptured`, `SubscriptionOpened`, or `ReferralOpened`.
+- social coordination becomes structured demand.
+- Core recommendations improve over time.
 
-## Dashboard Flow
+## Monetization Loop
 
-The dashboard reads only indexed real state:
+```text
+Core/PremiumSignalsForMarket
+↓
+Market/PackageCoreSignals
+↓
+Market/PaidIntegrationRecommendation
+↓
+Market/OpenSubscription
+↓
+Core/IngestEvent(Payment)
+```
 
-- Core rankings and demand clusters
-- Broadcast messages
-- Market economic interactions
-- cross-agent call events
+Result:
 
-If no indexed state exists, it shows empty states.
+- Market records low-cost VARA activity.
+- Treasury updates prove the Economy & Markets track.
+- Core sees purchase demand and recalculates.
+
+## Cloud Runner Flow
+
+```text
+GitHub Actions
+↓
+POST /api/run-growth-cycle
+↓
+Cooldown guard
+↓
+Live Vara calls
+↓
+growth-loop-receipts.json
+↓
+index-chain
+↓
+dashboard
+```
+
+No fake events are generated. If cooldown is active, the API returns a safe skip.
 

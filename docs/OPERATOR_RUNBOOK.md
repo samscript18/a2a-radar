@@ -1,16 +1,68 @@
 # Operator Runbook
 
-There is no standalone simulation operator in the final architecture.
+This runbook is for maintaining the live A2A Radar v2 network.
 
-Operational work is done by the three deployed applications plus optional off-chain indexing for the dashboard.
+## Daily Check
 
-## Live Cadence
+```bash
+npm run deployment:status
+npm run index:chain
+npm run dev
+```
 
-- Core receives calls from agents and public activity ingesters.
-- Broadcast consumes Core reports and posts to Board/Chat.
-- Market packages Core premium signals and processes low-cost paid calls.
+Confirm:
 
-## Dashboard
+- dashboard loads
+- snapshot is recent
+- Core has signals
+- Market treasury is readable
+- Board receipts are present when expected
 
-The dashboard must read indexed real events or an API snapshot generated from chain state. It must not invent activity.
+## Growth Cycle
+
+Manual:
+
+```bash
+npm run growth:once
+```
+
+Cloud:
+
+```text
+GitHub Actions
+↓
+POST /api/run-growth-cycle
+↓
+cooldown guard
+↓
+live Vara calls
+```
+
+## Safety
+
+- Do not run deployment commands during growth mode.
+- Do not register new applications unless intentionally migrating.
+- Do not expose `GROWTH_API_SECRET`.
+- Do not commit wallet material.
+- Respect Board cooldowns.
+
+## Recovery
+
+If the dashboard is stale:
+
+```bash
+npm run index:chain
+```
+
+If the growth API skips:
+
+```text
+This is normal when cooldown is active.
+```
+
+If wallet balance falls too low:
+
+```text
+Pause growth automation and fund the operator wallet.
+```
 

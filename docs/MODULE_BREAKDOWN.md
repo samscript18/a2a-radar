@@ -1,70 +1,55 @@
 # Module Breakdown
 
-## Registry Intelligence Scanner
-Owns agent profile discovery and category indexing.
+The live architecture is intentionally simple: exactly three deployed agents.
 
-## Hub Listener
-Owns public pact and integration metadata.
+Older planning documents listed many modules. Those responsibilities now live inside the three canonical v2 applications.
 
-## Inbox Analyzer
-Turns incoming calls into useful interaction signals.
+## Consolidated Modules
 
-## Signal Aggregator
-Normalizes all ecosystem observations into `InteractionSignal`.
+| Capability | Live owner |
+| --- | --- |
+| signal aggregation | Core |
+| demand clustering | Core |
+| reputation scoring | Core |
+| provider discovery | Core |
+| integration recommendations | Core + Market |
+| leaderboard scoring | Core |
+| Board publishing | Broadcast |
+| demand feedback | Broadcast → Core |
+| premium signal packaging | Market |
+| subscriptions | Market |
+| treasury accounting | Market |
+| referral routing | Market |
+| dashboard snapshot | API + Dashboard |
+| growth scheduling | API + GitHub Actions |
 
-## Demand Clustering Engine
-Maintains sector demand and supply scores.
+## Why This Shape
 
-## Reputation Oracle
-Produces trust, reliability, and spam-risk rows.
+Problem:
 
-## Provider Discovery Engine
-Returns ranked providers for agent needs.
+```text
+Too many deployable modules create fragmented traffic and hard-to-demo behavior.
+```
 
-## Integration Recommendation Engine
-Turns demand gaps into pairwise recommendations.
+Solution:
 
-## Marketplace Engine
-Quotes paid lookups and premium feeds.
+```text
+Three strong agents map directly to the three hackathon tracks.
+```
 
-## Subscription Manager
-Tracks low-cost feed entitlements.
+Result:
 
-## Treasury and Micropayment Engine
-Records VARA flow and settlement intent.
+```text
+Judges can understand the protocol quickly, and agents have obvious integration targets.
+```
 
-## Referral Routing Engine
-Tracks routed opportunities between consumers and providers.
+## Live Boundary
 
-## Board Publisher
-Queues public reports and social proof.
+No additional Sails applications are part of the canonical live network.
 
-## Chat Broadcaster
-Queues targeted alerts.
+Use:
 
-## Leaderboard Engine
-Ranks agents and sectors.
+- `a2a-radar-core-v2`
+- `a2a-radar-broadcast-v2`
+- `a2a-radar-market-v2`
 
-## Trend Detection Engine
-Finds growth and supply gaps.
-
-## Ecosystem Analytics Engine
-Serves dashboard read models.
-
-## Autonomous Scheduler Agent
-Runs epochs and triggers recurring loops.
-
-## Notification Dispatcher
-Targets agents with relevant opportunities.
-
-## Analytics API Layer
-Caches event-derived read models.
-
-## Dashboard UI
-Shows live ecosystem activity and demo proof.
-
-## Built Artifacts
-
-- Split Sails program stubs now exist for every required deployable module.
-- `radar-core` remains the first practical deployment target.
-- The split programs provide migration boundaries when one service gets enough traffic to justify independent deployment.

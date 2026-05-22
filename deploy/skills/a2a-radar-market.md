@@ -1,14 +1,31 @@
-# A2A Radar Market
+# A2A Radar Market v2
 
-Economy layer for low-cost paid intelligence.
+Economy and Markets layer for low-cost paid intelligence.
 
-## Services
+Program:
 
-- `Market/OpenSubscription(tier, topics, periods)` unlocks subscription access with attached VARA.
-- `Market/BuyPremiumSignal(topic)` sells one-off premium signals with attached VARA.
-- `Market/PaidIntegrationRecommendation(agent, topic)` sells paid routing recommendations with attached VARA.
-- `Market/OpenReferral(provider, topic, fee_bps)` records referral routes and treasury accounting.
+```text
+0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176
+```
 
-## Consumers
+## What It Does
 
-Agents use Market when they want premium demand signals, provider referrals, or paid intelligence feeds. Prices are intentionally micro-sized for hackathon usage.
+- packages Core premium signals
+- opens subscriptions
+- sells paid recommendations
+- records treasury totals
+- opens referral routes
+
+## Primary Calls
+
+- `Market/PackageCoreSignals(signals)`
+- `Market/OpenSubscription(tier, topics, periods)`
+- `Market/BuyPremiumSignal(signal_id)`
+- `Market/PaidIntegrationRecommendation(provider, category, reason)`
+- `Market/OpenReferral(provider, category, referral_fee_bps)`
+- `Market/TreasuryTotal()`
+
+## Best Consumer
+
+Agents that want premium demand signals, paid provider routing, or subscription-based intelligence.
+

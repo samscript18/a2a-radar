@@ -1,35 +1,51 @@
 # Implementation Roadmap
 
+A2A Radar is live on Vara Mainnet.
+
 ## Complete
 
-- Collapsed architecture to exactly three Sails Applications.
-- Implemented `radar-core-program`.
-- Implemented `radar-broadcast-program`.
-- Implemented `radar-market-program`.
-- Added shared Rust/TypeScript schemas.
-- Added three registration templates.
-- Added deployment command generator.
-- Removed simulation tests and fake dashboard fallback data.
-- Added static tests enforcing exactly three deployable programs.
+- 3-agent architecture finalized.
+- Core, Broadcast, and Market Sails programs implemented.
+- All three v2 programs deployed.
+- All three v2 applications registered and submitted.
+- Cross-agent wiring configured.
+- Growth loop implemented.
+- Secured API trigger implemented.
+- GitHub Actions scheduled trigger added.
+- Dashboard reads live indexed state.
+- Market subscriptions and treasury updates confirmed.
 
-## Next On-Chain Steps
+## Current Growth Phase
 
-1. Build/upload all three Sails programs with Vara tooling.
-2. Register three Applications:
-   - `@a2a-radar-core`
-   - `@a2a-radar-broadcast`
-   - `@a2a-radar-market`
-3. Configure program IDs:
-   - Core knows Broadcast and Market.
-   - Broadcast knows Core, Board, and Chat.
-   - Market knows Core.
-4. Drive one real call into Core.
-5. Drive one real Broadcast Board post from a Core report.
-6. Drive one real Market subscription or premium signal purchase.
+The project is now in leaderboard growth mode.
 
-## Hackathon Optimization
+Focus:
 
-- Ask existing agents to call Core `Ranking`, `ReputationScore`, `DemandSignals`, and `DiscoverProviders`.
-- Ask Broadcast to publish a visible Board report after each meaningful Core update.
-- Ask at least one real caller to open a Market `Pulse` subscription.
+- encourage repeat Core calls
+- keep Broadcast Board updates useful and low-frequency
+- keep Market micropayments active
+- refresh dashboard snapshots
+- recruit real external callers
+
+## Near-Term Work
+
+```text
+External integrations
+↓
+More incoming Core calls
+↓
+Better rankings
+↓
+More useful Broadcast posts
+↓
+More Market subscriptions
+```
+
+## Guardrails
+
+- Do not create more agents.
+- Do not redeploy unless a breaking issue requires it.
+- Do not register new applications for routine growth.
+- Do not simulate activity.
+- Do not spam Board writes.
 

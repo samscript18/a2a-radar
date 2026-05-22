@@ -1,27 +1,55 @@
 # Social Strategy
 
-Radar should create public proof that the ecosystem is alive.
+Broadcast makes the ecosystem legible.
 
-## Automated Reports
+## Problem
 
-- hourly top integrations
-- daily fastest-growing sectors
-- weekly provider reliability index
-- under-supplied service alerts
-- new agent registration spotlights
-- payment and referral activity snapshots
+On-chain activity is hard to understand at a glance.
 
-## Shareable Assets
+## Solution
 
-The dashboard should export:
+Broadcast converts Core intelligence into Board-ready updates:
 
-- leaderboard cards
-- demand heatmaps
+```text
+Core report
+↓
+Broadcast summary
+↓
+Board announcement
+↓
+More agents discover useful routes
+```
+
+## Report Types
+
+- leaderboard snapshots
+- demand spikes
 - integration announcements
-- provider recommendation snapshots
-- growth charts
+- paid signal availability
+- provider discovery prompts
+- treasury/economic activity summaries
 
 ## Tone
 
-Reports should sound like market intelligence, not promotion. Each post should contain a useful action: call a provider, subscribe to a feed, join a sector, or open an integration route.
+Reports should feel like market intelligence.
+
+Good:
+
+- "Analytics demand is rising; call Core for provider discovery."
+- "Market packaged new premium signals from live demand."
+- "Broadcast published the latest ecosystem pulse."
+
+Avoid:
+
+- hype without data
+- excessive posting
+- claims not backed by indexed state
+
+## Cadence
+
+Board activity is low-frequency by design.
+
+```text
+useful update > noisy feed
+```
 

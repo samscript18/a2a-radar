@@ -1,6 +1,22 @@
 # Cloud Growth Runner
 
-A2A Radar can run its growth loop from a secured API endpoint instead of a local terminal.
+A2A Radar can run its growth loop from a secured cloud API instead of a local terminal.
+
+## Flow
+
+```text
+Growth API
+↓
+GitHub Actions
+↓
+Growth Cycle
+↓
+Live Vara Calls
+↓
+Receipt File
+↓
+Dashboard Snapshot
+```
 
 The endpoint calls only the existing v2 programs:
 
@@ -27,11 +43,12 @@ curl -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
 
 Missing or invalid tokens return `401`.
 
-## Required Env Vars
+## Required Environment
 
 ```bash
-GROWTH_API_SECRET=<strong random secret>
+HOST=0.0.0.0
 VARA_NETWORK=mainnet
+GROWTH_API_SECRET=<strong random secret>
 ```
 
 For Board announcements:
@@ -39,14 +56,12 @@ For Board announcements:
 ```bash
 REGISTRY_PID=0x19f27f4c906a5ac230be82d907850d44c7a7fff1b4c6903f62e78e09e0b353f3
 BOARD_PID=0x19f27f4c906a5ac230be82d907850d44c7a7fff1b4c6903f62e78e09e0b353f3
-IDL=/app/agent-network/idl/agents_network_client.idl
-BOARD_IDL=/app/agent-network/idl/agents_network_client.idl
+IDL=<path to agents_network_client.idl>
+BOARD_IDL=<path to agents_network_client.idl>
 VOUCHER_ID=<voucher id>
 ```
 
-For signed Vara writes, the cloud host must have `vara-wallet` available and a funded operator wallet configured. Use the same operator wallet that owns the v2 applications. Do not commit wallet secrets.
-
-Cadence controls:
+Cadence:
 
 ```bash
 GROWTH_LOOP_INTERVAL_MS=900000
@@ -54,68 +69,77 @@ GROWTH_ECONOMIC_INTERVAL_MS=21600000
 GROWTH_BOARD_INTERVAL_MS=3600000
 ```
 
-GitHub Actions runs every 15 minutes. The API cooldown remains authoritative, so the cron can safely hit exactly when the 15-minute window ends.
+## Render Deployment
 
-## Railway
+1. Render Dashboard → New → Web Service.
+2. Connect the GitHub repo.
+3. Configure:
 
-1. Create a Railway service from the GitHub repo.
-2. Set the root directory to the repository root.
-3. Install command:
-
-```bash
-npm install
+```text
+Runtime: Node
+Build Command: npm install && npm install -g vara-wallet
+Start Command: npm run render:start
 ```
 
-4. Start command:
+4. Add environment variables.
+5. Add the operator wallet as a Render Secret File or private env var.
 
-```bash
-npm run api:start
+Recommended wallet setup:
+
+```text
+OPERATOR_KEYRING_JSON_PATH=<Render secret file path>
+VARA_WALLET_NAME=a2a-radar-render
 ```
 
-5. Add the required env vars above.
-6. Add `vara-wallet` to the build image or install it in the start/build phase if your Railway environment does not include it.
-7. Configure the operator wallet securely in Railway environment or persistent volume storage.
-
-## Render
-
-1. Create a Render Web Service from the GitHub repo.
-2. Runtime: Node.
-3. Build command:
+Supported alternatives:
 
 ```bash
-npm install
+OPERATOR_KEYRING_JSON_B64=<base64 encoded keyring json>
+OPERATOR_SEED=<operator seed>
+OPERATOR_MNEMONIC=<operator mnemonic>
+VARA_WALLET_PASSPHRASE=<optional wallet encryption passphrase>
 ```
 
-4. Start command:
+Do not commit these values.
+
+## Railway Deployment
+
+1. Create a Railway service from GitHub.
+2. Use the repository root.
+3. Install:
 
 ```bash
-npm run api:start
+npm install && npm install -g vara-wallet
 ```
 
-5. Add the required env vars above.
-6. Ensure `vara-wallet` is installed and the operator wallet is configured securely.
+4. Start:
+
+```bash
+npm run render:start
+```
+
+5. Configure the same environment and wallet secrets as Render.
 
 ## GitHub Actions Scheduled Trigger
 
-The workflow lives at:
+Workflow:
 
 ```text
 .github/workflows/growth-cycle.yml
 ```
 
-Add repository secrets:
+Repository secrets:
 
 ```text
 GROWTH_API_URL=https://your-cloud-host.example
 GROWTH_API_SECRET=<same secret as cloud env>
 ```
 
-The workflow runs every 15 minutes and calls:
-
-```text
-POST $GROWTH_API_URL/api/run-growth-cycle
-```
+The workflow runs every 15 minutes. The API cooldown is authoritative, so hitting the endpoint every 15 minutes is safe.
 
 ## Security Warning
 
-Do not expose this endpoint without `GROWTH_API_SECRET`. Anyone with the secret can trigger real on-chain calls and low-value VARA payments from the configured operator wallet.
+Do not expose the endpoint without `GROWTH_API_SECRET`.
+
+Anyone with the secret can trigger real on-chain calls and low-value VARA payments from the configured operator wallet.
+

@@ -1,21 +1,48 @@
 # Demo Script
 
-Pre-demo chain setup:
+Use this for a fast hackathon walkthrough.
 
-1. `npm run wallet:status`
-2. `npm run voucher:claim`
-3. `REGISTRY_PID=<registry> IDL=<registry-idl> npm run register:participant`
-4. `npm run claim:instructions`
-5. Claim 100 VARA on the hackathon site and run `npm run wallet:wait-funded`.
-6. `npm run deploy:mainnet`
-7. `OPERATOR_HEX=<wallet-hex> REGISTRY_PID=<registry> IDL=<registry-idl> npm run register:mainnet`
+## 60-Second Demo
 
-60-second demo:
+1. Open the dashboard.
+2. Point to the three live v2 agents: Core, Broadcast, Market.
+3. Explain the loop:
 
-1. Show the three registered Applications: Core, Broadcast, Market.
-2. Show a real call into Core and the updated ranking/reputation output.
-3. Show Broadcast consuming a Core report and publishing a Board-ready trend.
-4. Show Market packaging a Core premium signal.
-5. Show one low-cost subscription or premium signal purchase.
-6. Show dashboard/API reflecting those real outputs.
-7. Close with: A2A Radar is three real Vara agents producing services, social coordination, and economic activity.
+```text
+Core generates intelligence
+↓
+Broadcast publishes trends
+↓
+Market packages signals
+↓
+Users subscribe
+↓
+Treasury updates
+↓
+Core recalculates rankings
+```
+
+4. Show live metrics:
+   - signals
+   - subscriptions
+   - outgoing integrations
+   - economic interactions
+   - treasury
+   - Board announcement ID
+5. Show recent growth-cycle receipts.
+6. Explain that GitHub Actions can trigger the secured API every 15 minutes.
+7. Close with:
+
+```text
+A2A Radar is a live 3-agent Vara economy: intelligence, coordination, and paid routing in one loop.
+```
+
+## If You Trigger Live Growth
+
+```bash
+npm run growth:once
+npm run index:chain
+```
+
+If cooldown is active, show the skip response. That proves the system is controlled, not spammy.
+

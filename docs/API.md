@@ -1,22 +1,87 @@
-# Analytics API
+# API
 
-The API is only a read cache for real chain-derived state.
+The API exposes read access to indexed live state and a secured trigger for the growth loop.
 
-## Endpoints
+It does not deploy contracts, register applications, or create mock activity.
 
-`GET /health`
+## Health
 
-Service health.
+```http
+GET /health
+```
 
-`GET /snapshot`
+Returns:
 
-Returns the latest indexed snapshot containing:
+```json
+{
+  "ok": true,
+  "service": "a2a-radar-api"
+}
+```
 
-- Core rankings
+## Snapshot
+
+```http
+GET /snapshot
+```
+
+Returns the latest `artifacts/latest-snapshot.json` read model:
+
 - Core demand signals
-- Broadcast messages
-- Market economic interactions
-- cross-agent calls
+- Core opportunities
+- Broadcast activity
+- Market payments
+- treasury totals
+- cross-agent call evidence
 
-If no indexer has written a snapshot yet, the dashboard shows empty states.
+If no snapshot exists, the dashboard shows empty states.
+
+## Growth Cycle Trigger
+
+```http
+POST /api/run-growth-cycle
+Authorization: Bearer <GROWTH_API_SECRET>
+```
+
+Flow:
+
+```text
+Growth API
+↓
+Cooldown guard
+↓
+Core/Broadcast/Market calls
+↓
+Receipt file
+↓
+Dashboard snapshot
+```
+
+Skipped response:
+
+```json
+{
+  "ok": true,
+  "skipped": true,
+  "nextCycleDueInSeconds": 123
+}
+```
+
+Executed response:
+
+```json
+{
+  "ok": true,
+  "skipped": false,
+  "callsExecuted": 10,
+  "treasuryDelta": "35000000000",
+  "subscriptions": 1,
+  "boardAnnouncementId": "147",
+  "receiptsPath": "artifacts/deploy/growth-loop-receipts.json"
+}
+```
+
+## Security
+
+Keep `GROWTH_API_SECRET` private. Anyone with this token can trigger real on-chain calls from the configured operator wallet.
 
