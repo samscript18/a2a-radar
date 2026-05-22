@@ -151,13 +151,22 @@ if (!walletExists(walletsBefore)) {
 			const okWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
 			const okWithoutName = okWithName || nameArgs.length === 0 ? okWithName : tryWalletImport(["wallet", "import", support.jsonFlag, importConfig.keyringPath, ...encryptionArgs], undefined);
 			if (!okWithoutName) {
-				if (!support.stdinFlag) {
-					throw new Error("wallet import rejected the JSON path and does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
-				}
 				console.log("Wallet import mode: keyring-stdin");
-				const okStdinWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], importConfig.keyringJson);
-				if (!okStdinWithName && nameArgs.length > 0) {
-					runWallet(["wallet", "import", support.stdinFlag, ...encryptionArgs], { capture: true, input: importConfig.keyringJson });
+				const okJsonFlagStdin = tryWalletImport(
+					["wallet", "import", ...nameArgs, support.jsonFlag, ...encryptionArgs],
+					importConfig.keyringJson,
+				);
+				const okJsonFlagStdinNoName = okJsonFlagStdin || nameArgs.length === 0
+					? okJsonFlagStdin
+					: tryWalletImport(["wallet", "import", support.jsonFlag, ...encryptionArgs], importConfig.keyringJson);
+				if (!okJsonFlagStdinNoName) {
+					if (!support.stdinFlag) {
+						throw new Error("wallet import rejected the JSON path and does not advertise stdin support. Set OPERATOR_SEED or OPERATOR_MNEMONIC, or update vara-wallet.");
+					}
+					const okStdinWithName = tryWalletImport(["wallet", "import", ...nameArgs, support.stdinFlag, ...encryptionArgs], importConfig.keyringJson);
+					if (!okStdinWithName && nameArgs.length > 0) {
+						runWallet(["wallet", "import", support.stdinFlag, ...encryptionArgs], { capture: true, input: importConfig.keyringJson });
+					}
 				}
 			}
 		} else {
