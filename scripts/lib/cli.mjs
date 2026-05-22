@@ -118,13 +118,19 @@ export function programIdsPath() {
 }
 
 export function requireProgramIds() {
-	const ids = readJson(programIdsPath());
+	const ids = readJson(programIdsPath(), {});
+	const manifest = readJson("deploy/mainnet/programs.json", {});
+	const resolved = {
+		core: ids.core ?? manifest.radarCore?.programId ?? "0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503",
+		broadcast: ids.broadcast ?? manifest.radarBroadcast?.programId ?? "0x5a46382a5ae2021e0eb3b597fdfed14fdc4b0f14ee87bd2b014c8314be14b21a",
+		market: ids.market ?? manifest.radarMarket?.programId ?? "0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176",
+	};
 	for (const key of ["core", "broadcast", "market"]) {
-		if (!ids[key]) {
+		if (!resolved[key]) {
 			throw new Error(`Missing ${key} program id. Run npm run deploy:mainnet first.`);
 		}
 	}
-	return ids;
+	return resolved;
 }
 
 export function requireEnv(name) {
