@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 const walletName = process.env.VARA_WALLET_NAME ?? "a2a-radar-render";
 const passphrase = process.env.VARA_WALLET_PASSPHRASE;
 const patchedWalletPath = resolve(process.cwd(), "tools", "vara-wallet-patched", "vara-wallet.cjs");
 const usePatchedWallet = existsSync(patchedWalletPath);
+const defaultAgentNetworkIdl = "agent-network/idl/agents_network_client.idl";
 
 function run(command, args, options = {}) {
 	const result = spawnSync(command, args, {
@@ -31,6 +32,34 @@ function runWallet(args, options = {}) {
 		return run(process.execPath, [patchedWalletPath, ...args], options);
 	}
 	return run("vara-wallet", args, options);
+}
+
+function resolveFromRepo(path) {
+	if (!path) return undefined;
+	return isAbsolute(path) ? path : resolve(process.cwd(), path);
+}
+
+function configureNetworkIdlPaths() {
+	const idlPath = resolveFromRepo(process.env.IDL ?? process.env.REGISTRY_IDL ?? defaultAgentNetworkIdl);
+	const registryIdlPath = resolveFromRepo(process.env.REGISTRY_IDL ?? idlPath);
+	const boardIdlPath = resolveFromRepo(process.env.BOARD_IDL ?? registryIdlPath ?? idlPath);
+
+	process.env.IDL = idlPath;
+	process.env.REGISTRY_IDL = registryIdlPath;
+	process.env.BOARD_IDL = boardIdlPath;
+
+	console.log(`process.cwd(): ${process.cwd()}`);
+	console.log(`Resolved IDL path: ${idlPath}`);
+	console.log(`IDL exists: ${existsSync(idlPath)}`);
+	console.log(`Resolved BOARD_IDL path: ${boardIdlPath}`);
+	console.log(`BOARD_IDL exists: ${existsSync(boardIdlPath)}`);
+
+	if (!idlPath || !existsSync(idlPath)) {
+		throw new Error(`Missing Agent Network IDL at ${idlPath}. Set IDL to a repo-relative path such as ${defaultAgentNetworkIdl}.`);
+	}
+	if (!boardIdlPath || !existsSync(boardIdlPath)) {
+		throw new Error(`Missing Board IDL at ${boardIdlPath}. Set BOARD_IDL to a repo-relative path such as ${defaultAgentNetworkIdl}.`);
+	}
 }
 
 function getWalletList() {
@@ -122,6 +151,8 @@ function importArgsFromEnv() {
 if (!existsSync("package.json")) {
 	throw new Error("render-start must be run from the a2a-radar repo root.");
 }
+
+configureNetworkIdlPaths();
 
 console.log(`Wallet binary: ${usePatchedWallet ? patchedWalletPath : "vara-wallet"}`);
 

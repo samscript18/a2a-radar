@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Activity,
   ArrowDown,
@@ -22,9 +24,11 @@ import {
 import type { ForwardRefExoticComponent, ReactNode, RefAttributes } from "react";
 import type { LucideProps } from "lucide-react";
 import type { RadarSnapshot } from "@radar/types";
+import { useEffect, useState } from "react";
+import { emptySnapshot } from "@/lib/demo-data";
 import { formatDateTime, formatRawVara, shortenAddress } from "@/lib/format";
-import { getLatestGrowthReceipt } from "@/lib/receipts";
-import { getRadarSnapshot, type DashboardSnapshot } from "@/lib/snapshot";
+import type { GrowthReceiptSummary } from "@/lib/receipts";
+import type { DashboardSnapshot } from "@/lib/snapshot";
 
 const CANONICAL_IDS = {
   core: "0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503",
@@ -53,9 +57,50 @@ interface AgentCardModel {
 
 type MetricModel = [label: string, value: string, icon: IconComponent];
 
-export default async function Home() {
-  const snapshot = await getRadarSnapshot();
-  const receipt = await getLatestGrowthReceipt();
+const EMPTY_RECEIPT: GrowthReceiptSummary = {
+  exists: false,
+  callsExecuted: 0,
+  skipped: true,
+  boardAnnouncementId: null,
+  treasuryDeltaRaw: "0"
+};
+
+export default function Home() {
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot>(emptySnapshot);
+  const [receipt, setReceipt] = useState<GrowthReceiptSummary>(EMPTY_RECEIPT);
+
+  useEffect(() => {
+    let active = true;
+
+    async function refresh() {
+      try {
+        const [snapshotResponse, receiptResponse] = await Promise.all([
+          fetch("/api/snapshot", { cache: "no-store" }),
+          fetch("/api/growth-receipt", { cache: "no-store" })
+        ]);
+        if (!active) return;
+        if (snapshotResponse.ok) {
+          setSnapshot(await snapshotResponse.json() as DashboardSnapshot);
+        }
+        if (receiptResponse.ok) {
+          setReceipt(await receiptResponse.json() as GrowthReceiptSummary);
+        }
+      } catch {
+        if (active) {
+          setSnapshot(emptySnapshot);
+          setReceipt(EMPTY_RECEIPT);
+        }
+      }
+    }
+
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const hasIndexedData = snapshot.generatedAt !== "" || snapshot.counts.signals > 0 || snapshot.economicInteractions.length > 0;
   const boardAnnouncementId = latestBoardAnnouncementId(snapshot) ?? receipt.boardAnnouncementId;
   const treasuryRaw = snapshot.raw?.marketTreasuryRaw ?? totalEconomicRaw(snapshot);

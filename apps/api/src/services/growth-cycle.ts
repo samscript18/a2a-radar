@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 export const LIVE_V2_PROGRAM_IDS = {
   core: "0x63bc8d411e7e826bcbe02aeb9f385e964b12be31449a55bfbdbbaab29a5f8503",
@@ -55,6 +55,11 @@ function repoRoot(options: GrowthCycleOptions = {}) {
 
 function absolute(root: string, path: string) {
   return resolve(root, path);
+}
+
+function resolveRuntimePath(root: string, path: string | undefined) {
+  if (!path) return undefined;
+  return isAbsolute(path) ? path : resolve(root, path);
 }
 
 function readJson<T>(root: string, path: string, fallback: T): T {
@@ -184,9 +189,12 @@ function unwrap(value: JsonObject) {
 
 function boardPost(root: string, app: string, title: string, body: string, tags: string[]) {
   const boardPid = process.env.BOARD_PID ?? process.env.REGISTRY_PID;
-  const boardIdl = process.env.BOARD_IDL ?? process.env.REGISTRY_IDL ?? process.env.IDL;
+  const boardIdl = resolveRuntimePath(root, process.env.BOARD_IDL ?? process.env.REGISTRY_IDL ?? process.env.IDL);
   if (!boardPid || !boardIdl) {
     return { skipped: true, reason: "BOARD_PID and BOARD_IDL/IDL not set" };
+  }
+  if (!existsSync(boardIdl)) {
+    throw new Error(`BOARD_IDL file does not exist: ${boardIdl}`);
   }
   return runJson(root, varaWalletArgs(withVoucher(root, [
     "call",

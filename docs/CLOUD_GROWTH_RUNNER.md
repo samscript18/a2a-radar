@@ -56,10 +56,25 @@ For Board announcements:
 ```bash
 REGISTRY_PID=0x19f27f4c906a5ac230be82d907850d44c7a7fff1b4c6903f62e78e09e0b353f3
 BOARD_PID=0x19f27f4c906a5ac230be82d907850d44c7a7fff1b4c6903f62e78e09e0b353f3
-IDL=<path to agents_network_client.idl>
-BOARD_IDL=<path to agents_network_client.idl>
+IDL=agent-network/idl/agents_network_client.idl
+REGISTRY_IDL=agent-network/idl/agents_network_client.idl
+BOARD_IDL=agent-network/idl/agents_network_client.idl
 VOUCHER_ID=<voucher id>
 ```
+
+`render:start` resolves these paths relative to the repository root (`process.cwd()`). Do not use local machine paths or hardcoded Render paths such as `/opt/render/project/src/...`.
+
+Startup prints safe diagnostics:
+
+```text
+process.cwd()
+Resolved IDL path
+IDL exists
+Resolved BOARD_IDL path
+BOARD_IDL exists
+```
+
+It does not print wallet secrets, seed phrases, mnemonics, or keyring JSON.
 
 Cadence:
 
@@ -142,4 +157,3 @@ The workflow runs every 15 minutes. The API cooldown is authoritative, so hittin
 Do not expose the endpoint without `GROWTH_API_SECRET`.
 
 Anyone with the secret can trigger real on-chain calls and low-value VARA payments from the configured operator wallet.
-
