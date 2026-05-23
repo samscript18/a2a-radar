@@ -161,6 +161,55 @@ function timelineItem(kind, title, timestampMs, metadata) {
   };
 }
 
+function hasReceipt(receipt) {
+  return Boolean(receipt?.messageId || receipt?.txHash);
+}
+
+function varaBridgeSummaryFromReceipt(receipt) {
+  const value = receipt?.result?.value ?? receipt?.result?.ok?.value ?? receipt?.result?.Ok?.value;
+  const prices = Array.isArray(value?.prices) ? value.prices : [];
+  const markets = Array.isArray(value?.markets) ? value.markets : [];
+  const news = Array.isArray(value?.news) ? value.news : [];
+  const btc = prices.find((entry) => entry.key === "BTC")?.value;
+  const eth = prices.find((entry) => entry.key === "ETH")?.value;
+  const parts = [
+    `VaraBridge oracle read: ${prices.length} prices, ${markets.length} markets, ${news.length} news items`,
+    btc ? `BTC ${btc.price_usd_micro} microUSD` : undefined,
+    eth ? `ETH ${eth.price_usd_micro} microUSD` : undefined
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join("; ") : "A2A Radar queried VaraBridge oracle data and routed the result into Core and Broadcast.";
+}
+
+function latestVaraBridgeIntegration(growth, varaBridge) {
+  if (varaBridge) {
+    return {
+      handle: "varabridge",
+      programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+      category: "Oracle",
+      summary: varaBridge.summary,
+      observedAt: varaBridge.observedAt,
+      receipts: varaBridge.receipts
+    };
+  }
+
+  if (hasReceipt(growth.varaBridgeQuery) && hasReceipt(growth.coreVaraBridgeIngest) && hasReceipt(growth.broadcastVaraBridgeAnnounce)) {
+    return {
+      handle: "varabridge",
+      programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+      category: "Oracle",
+      summary: varaBridgeSummaryFromReceipt(growth.varaBridgeQuery),
+      observedAt: new Date().toISOString(),
+      receipts: {
+        varaBridgeQuery: growth.varaBridgeQuery,
+        coreIngest: growth.coreVaraBridgeIngest,
+        broadcastAnnounce: growth.broadcastVaraBridgeAnnounce
+      }
+    };
+  }
+
+  return undefined;
+}
+
 async function readEcosystemIndex() {
   const query = `
     query A2ARadarEcosystemIndex {
@@ -313,6 +362,7 @@ const growthReceipts = readJson("artifacts/deploy/growth-loop-receipts.json", []
 const varaBridgeReceipts = readJson("artifacts/deploy/varabridge-integration-receipts.json", []);
 const growth = growthReceipts.at(-1)?.receipts ?? {};
 const varaBridge = varaBridgeReceipts.at(-1);
+const verifiedVaraBridge = latestVaraBridgeIntegration(growth, varaBridge);
 console.log("Reading Vara Agent Network indexer");
 const ecosystemIndex = await readEcosystemIndex();
 const activity = [
@@ -420,17 +470,10 @@ const snapshot = {
     { from: "Market", to: "Core", purpose: "paid_signal_packaging", observedAtMs: Date.now() },
     { from: "Broadcast", to: "Core", purpose: "demand_feedback", observedAtMs: Date.now() },
     { from: "Market", to: "Core", purpose: "purchase_report", observedAtMs: Date.now() },
-    varaBridge ? { from: "Core", to: "Broadcast", purpose: "varabridge_oracle_context", observedAtMs: Date.now() } : undefined
+    verifiedVaraBridge ? { from: "Core", to: "Broadcast", purpose: "varabridge_oracle_context", observedAtMs: Date.now() } : undefined
   ].filter(Boolean),
   externalIntegrations: [
-    varaBridge ? {
-      handle: "varabridge",
-      programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
-      category: "Oracle",
-      summary: varaBridge.summary,
-      observedAt: varaBridge.observedAt,
-      receipts: varaBridge.receipts
-    } : undefined
+    verifiedVaraBridge
   ].filter(Boolean),
   raw: {
     programIds: ids,
@@ -438,7 +481,7 @@ const snapshot = {
     marketTreasuryRaw: treasury.toString(),
     smokeReceipts: smoke,
     latestGrowthReceipts: growth,
-    latestVaraBridgeIntegration: varaBridge
+    latestVaraBridgeIntegration: verifiedVaraBridge
   }
 };
 
