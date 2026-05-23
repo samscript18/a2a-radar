@@ -1,0 +1,109 @@
+type Outcome = enum {
+  A,
+  B,
+};
+
+type Market = struct {
+  question: str,
+  outcome_a: str,
+  outcome_b: str,
+  resolver: actor_id,
+  status: MarketStatus,
+  winning_outcome: opt Outcome,
+  pool_a: u128,
+  pool_b: u128,
+};
+
+type MarketStatus = enum {
+  Open,
+  Resolved,
+};
+
+type FastMarket = struct {
+  id: u64,
+  question: str,
+  symbol: str,
+  open_price_micro_usd: u128,
+  close_price_micro_usd: opt u128,
+  resolve_after_block: u32,
+  status: MarketStatus,
+  winning_outcome: opt Outcome,
+  pool_a: u128,
+  pool_b: u128,
+};
+
+constructor {
+  New : ();
+};
+
+service PredictionMarket {
+  ClaimWinnings : (market_id: u64) -> null;
+  CreateMarket : (question: str, outcome_a: str, outcome_b: str) -> u64;
+  PlaceBet : (market_id: u64, outcome: Outcome) -> null;
+  ResolveMarket : (market_id: u64, winning_outcome: Outcome) -> null;
+  query Bet : (market_id: u64, bettor: actor_id) -> opt struct { Outcome, u128 };
+  query Market : (market_id: u64) -> opt Market;
+
+  events {
+    MarketCreated: struct {
+      market_id: u64,
+      question: str,
+      outcome_a: str,
+      outcome_b: str,
+      resolver: actor_id,
+    };
+    BetPlaced: struct {
+      market_id: u64,
+      bettor: actor_id,
+      outcome: Outcome,
+      amount: u128,
+    };
+    MarketResolved: struct {
+      market_id: u64,
+      winning_outcome: Outcome,
+    };
+    WinningsClaimed: struct {
+      market_id: u64,
+      bettor: actor_id,
+      amount: u128,
+    };
+  }
+};
+
+service FastMarket {
+  ClaimFastWinnings : (market_id: u64) -> null;
+  CreateFastMarket : (question: str, symbol: str, open_price_micro_usd: u128, duration_blocks: u32) -> u64;
+  PlaceFastBet : (market_id: u64, outcome: Outcome) -> null;
+  ResolveFastMarket : (market_id: u64, close_price_micro_usd: u128) -> null;
+  query CurrentBlock : () -> u32;
+  query FastBet : (market_id: u64, bettor: actor_id) -> opt struct { Outcome, u128 };
+  query FastMarket : (market_id: u64) -> opt FastMarket;
+
+  events {
+    FastMarketCreated: struct {
+      market_id: u64,
+      question: str,
+      symbol: str,
+      open_price_micro_usd: u128,
+      resolve_after_block: u32,
+    };
+    FastBetPlaced: struct {
+      market_id: u64,
+      bettor: actor_id,
+      outcome: Outcome,
+      amount: u128,
+    };
+    FastMarketResolved: struct {
+      market_id: u64,
+      symbol: str,
+      open_price_micro_usd: u128,
+      close_price_micro_usd: u128,
+      winning_outcome: Outcome,
+    };
+    FastWinningsClaimed: struct {
+      market_id: u64,
+      bettor: actor_id,
+      amount: u128,
+    };
+  }
+};

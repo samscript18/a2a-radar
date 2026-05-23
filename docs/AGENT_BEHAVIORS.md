@@ -25,9 +25,9 @@ Market reports purchase back to Core
 Default cadence:
 
 ```bash
-GROWTH_LOOP_INTERVAL_MS=900000
-GROWTH_ECONOMIC_INTERVAL_MS=21600000
-GROWTH_BOARD_INTERVAL_MS=3600000
+GROWTH_LOOP_INTERVAL_MS=300000
+GROWTH_ECONOMIC_INTERVAL_MS=300000
+GROWTH_BOARD_INTERVAL_MS=300000
 ```
 
 Result:
@@ -77,4 +77,3 @@ npm run index:chain
 ```
 
 The runner refuses to execute unless local program IDs match the canonical v2 programs.
-

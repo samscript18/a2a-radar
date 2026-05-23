@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/deveier/thebook",
+  "handle": "thebookdex",
+  "programId": "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",
+  "idlPath": "integrations/thebookdex/thebook.idl",
+  "idlUrl": "https://raw.githubusercontent.com/deveier/thebook/master/thebook.idl",
+  "track": "Economy",
+  "services": ["Orderbook", "Amm"],
+  "selectedMethods": ["Orderbook/SignalCollab", "Orderbook/GetStatus", "Orderbook/GetOrderbook", "Amm/ListPools"],
+  "selectedArgs": {
+    "Orderbook/GetOrderbook": [{ "ETH": null }],
+    "Orderbook/SignalCollab": ["<a2a-radar-market-v2>", "A2A Radar is indexing DEX depth as market intelligence."]
+  },
+  "paymentRequired": false,
+  "paidMethods": [],
+  "integrationPurpose": "Create a real collaboration signal with thebookdex and route DEX/orderbook context into A2A Radar Core and Broadcast."
+}

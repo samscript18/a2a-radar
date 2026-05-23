@@ -49,6 +49,18 @@ const VARABRIDGE = {
   query: { query_type: "all", symbol: null, keys: null }
 } as const;
 
+const HY4_PREDICT = {
+  programId: "0xd24f2886dcb29dec16fc53214b7c8e498b2e96ea55d31a1497571e1ae15f5271",
+  idl: "integrations/hy4-predict/hy4_predict.idl",
+  marketId: 0
+} as const;
+
+const THEBOOKDEX = {
+  programId: "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",
+  idl: "integrations/thebookdex/thebook.idl",
+  orderbookAsset: { ETH: null }
+} as const;
+
 function repoRoot(options: GrowthCycleOptions = {}) {
   return resolve(options.repoRoot ?? process.cwd());
 }
@@ -318,6 +330,56 @@ function summarizeBridgeReply(reply: JsonObject) {
   ].filter(Boolean).join("; ");
 }
 
+function summarizeHy4Predict(currentBlock: unknown, fastMarketReply: unknown) {
+  const container = fastMarketReply && typeof fastMarketReply === "object"
+    ? ((fastMarketReply as JsonObject).value as JsonObject | undefined) ?? fastMarketReply as JsonObject
+    : undefined;
+  if (!container) {
+    return `hy4-predict FastMarket read: current block ${String(currentBlock)}; selected market not available.`;
+  }
+
+  const statusContainer = container.status;
+  const status = typeof statusContainer === "string"
+    ? statusContainer
+    : statusContainer && typeof statusContainer === "object"
+      ? Object.keys(statusContainer as JsonObject)[0] ?? "Unknown"
+      : "Unknown";
+  const question = String(container.question ?? `FastMarket ${HY4_PREDICT.marketId}`);
+  const symbol = String(container.symbol ?? "unknown");
+  const openPrice = String(container.open_price_micro_usd ?? container.openPriceMicroUsd ?? "0");
+  const resolveAfter = Number(container.resolve_after_block ?? container.resolveAfterBlock ?? 0);
+  const block = Number(currentBlock ?? 0);
+  const blocksRemaining = Math.max(0, resolveAfter - block);
+
+  return [
+    `hy4-predict FastMarket read: ${question}`,
+    `symbol ${symbol}`,
+    `status ${status}`,
+    `open ${openPrice} microUSD`,
+    `blocks remaining ${blocksRemaining}`
+  ].join("; ");
+}
+
+function tupleLength(value: unknown, index: number) {
+  const item = Array.isArray(value) ? value[index] : undefined;
+  return Array.isArray(item) ? item.length : 0;
+}
+
+function summarizeTheBookDex(statusReply: unknown, orderbookReply: unknown, poolsReply: unknown) {
+  const statusText = Array.isArray(statusReply)
+    ? `status ${statusReply.join("/")}`
+    : `status ${JSON.stringify(statusReply ?? "unknown")}`;
+  const bids = tupleLength(orderbookReply, 0);
+  const asks = tupleLength(orderbookReply, 1);
+  const poolCount = Array.isArray(poolsReply) ? poolsReply.length : 0;
+  return [
+    "thebookdex DEX read",
+    statusText,
+    `ETH book ${bids} bids / ${asks} asks`,
+    `${poolCount} AMM pools`
+  ].join("; ");
+}
+
 export function isAuthorizedGrowthRequest(authHeader: string | undefined, secret = process.env.GROWTH_API_SECRET) {
   if (!secret || !authHeader?.startsWith("Bearer ")) return false;
   const token = authHeader.slice("Bearer ".length);
@@ -329,7 +391,8 @@ export function isAuthorizedGrowthRequest(authHeader: string | undefined, secret
 export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<GrowthCycleResult> {
   const root = repoRoot(options);
   const state = readJson<JsonObject>(root, RELATIVE_STATE_PATH, {});
-  const loopIntervalMs = intervalMs("GROWTH_LOOP_INTERVAL_MS", 15 * 60 * 1000);
+  const fiveMinutesMs = 5 * 60 * 1000;
+  const loopIntervalMs = intervalMs("GROWTH_LOOP_INTERVAL_MS", fiveMinutesMs);
   if (!due(state, "lastCycleAt", loopIntervalMs, options)) {
     return {
       ok: true,
@@ -341,9 +404,11 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
   const ids = resolveProgramIds(root);
   assertLiveV2Ids(ids);
 
-  const economicIntervalMs = intervalMs("GROWTH_ECONOMIC_INTERVAL_MS", 6 * 60 * 60 * 1000);
-  const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", 60 * 60 * 1000);
-  const externalIntegrationIntervalMs = intervalMs("GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS", 2 * 60 * 60 * 1000);
+  const economicIntervalMs = intervalMs("GROWTH_ECONOMIC_INTERVAL_MS", fiveMinutesMs);
+  const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", fiveMinutesMs);
+  const externalIntegrationIntervalMs = intervalMs("GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS", fiveMinutesMs);
+  const predictionIntegrationIntervalMs = intervalMs("GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS", fiveMinutesMs);
+  const dexIntegrationIntervalMs = intervalMs("GROWTH_DEX_INTEGRATION_INTERVAL_MS", fiveMinutesMs);
   const paidRecommendationValue = process.env.PAID_RECOMMENDATION_VALUE ?? "0.01";
   const subscriptionValue = process.env.PULSE_VALUE ?? "0.025";
   const paymentRaw = process.env.GROWTH_PAYMENT_RAW ?? "10000000000";
@@ -423,6 +488,67 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     state.lastVaraBridgeAt = now(options);
   } else {
     receipts.varaBridgeQuery = { skipped: true, reason: "external integration interval not due" };
+  }
+
+  if (due(state, "lastHy4PredictAt", predictionIntegrationIntervalMs, options)) {
+    const currentBlockReceipt = callNoArgs(root, HY4_PREDICT.programId, "FastMarket/CurrentBlock", HY4_PREDICT.idl);
+    const currentBlock = unwrap(currentBlockReceipt);
+    const fastMarketReceipt = call(root, HY4_PREDICT.programId, "FastMarket/FastMarket", [HY4_PREDICT.marketId], HY4_PREDICT.idl);
+    const fastMarket = unwrap(fastMarketReceipt);
+    const hy4Summary = summarizeHy4Predict(currentBlock, fastMarket);
+    receipts.hy4PredictCurrentBlock = currentBlockReceipt;
+    receipts.hy4PredictFastMarket = fastMarketReceipt;
+    receipts.coreHy4PredictIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", HY4_PREDICT.programId, "Prediction", null, 3, hy4Summary],
+      agents.core.idl
+    );
+    receipts.broadcastHy4PredictAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [HY4_PREDICT.programId, hy4Summary],
+      agents.broadcast.idl
+    );
+    state.lastHy4PredictAt = now(options);
+  } else {
+    receipts.hy4PredictFastMarket = { skipped: true, reason: "prediction integration interval not due" };
+  }
+
+  if (due(state, "lastTheBookDexAt", dexIntegrationIntervalMs, options)) {
+    receipts.theBookDexSignalCollab = call(
+      root,
+      THEBOOKDEX.programId,
+      "Orderbook/SignalCollab",
+      [ids.market, "A2A Radar is indexing thebookdex market depth for ecosystem intelligence."],
+      THEBOOKDEX.idl
+    );
+    const statusReceipt = callNoArgs(root, THEBOOKDEX.programId, "Orderbook/GetStatus", THEBOOKDEX.idl);
+    const orderbookReceipt = call(root, THEBOOKDEX.programId, "Orderbook/GetOrderbook", [THEBOOKDEX.orderbookAsset], THEBOOKDEX.idl);
+    const poolsReceipt = callNoArgs(root, THEBOOKDEX.programId, "Amm/ListPools", THEBOOKDEX.idl);
+    const dexSummary = summarizeTheBookDex(unwrap(statusReceipt), unwrap(orderbookReceipt), unwrap(poolsReceipt));
+    receipts.theBookDexStatus = statusReceipt;
+    receipts.theBookDexOrderbook = orderbookReceipt;
+    receipts.theBookDexPools = poolsReceipt;
+    receipts.coreTheBookDexIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", THEBOOKDEX.programId, "Marketplace", null, 3, dexSummary],
+      agents.core.idl
+    );
+    receipts.broadcastTheBookDexAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [THEBOOKDEX.programId, dexSummary],
+      agents.broadcast.idl
+    );
+    state.lastTheBookDexAt = now(options);
+  } else {
+    receipts.theBookDexSignalCollab = { skipped: true, reason: "DEX integration interval not due" };
   }
 
   let subscriptions = 0;

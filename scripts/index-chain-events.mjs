@@ -210,6 +210,107 @@ function latestVaraBridgeIntegration(growth, varaBridge) {
   return undefined;
 }
 
+function hy4PredictSummaryFromReceipt(currentBlockReceipt, fastMarketReceipt) {
+  const currentBlock = currentBlockReceipt?.result?.ok ?? currentBlockReceipt?.result?.Ok ?? currentBlockReceipt?.result?.value ?? currentBlockReceipt?.result ?? "unknown";
+  const market = fastMarketReceipt?.result?.ok?.value ?? fastMarketReceipt?.result?.Ok?.value ?? fastMarketReceipt?.result?.value ?? fastMarketReceipt?.result?.ok ?? fastMarketReceipt?.result?.Ok;
+  if (!market || typeof market !== "object") {
+    return `hy4-predict FastMarket read: current block ${currentBlock}; selected market not available.`;
+  }
+  const status = typeof market.status === "string" ? market.status : market.status?.kind ?? Object.keys(market.status ?? {})[0] ?? "Unknown";
+  const resolveAfter = Number(market.resolve_after_block ?? market.resolveAfterBlock ?? 0);
+  const blocksRemaining = Math.max(0, resolveAfter - Number(currentBlock ?? 0));
+  return [
+    `hy4-predict FastMarket read: ${market.question ?? "FastMarket 0"}`,
+    `symbol ${market.symbol ?? "unknown"}`,
+    `status ${status}`,
+    `open ${market.open_price_micro_usd ?? market.openPriceMicroUsd ?? "0"} microUSD`,
+    `blocks remaining ${blocksRemaining}`
+  ].join("; ");
+}
+
+function latestHy4PredictIntegration(growth, hy4Predict) {
+  if (hy4Predict) {
+    return {
+      handle: "hy4-predict-app",
+      programId: "0xd24f2886dcb29dec16fc53214b7c8e498b2e96ea55d31a1497571e1ae15f5271",
+      category: "Prediction",
+      summary: hy4Predict.summary,
+      observedAt: hy4Predict.observedAt,
+      receipts: hy4Predict.receipts
+    };
+  }
+
+  if (hasReceipt(growth.hy4PredictFastMarket) && hasReceipt(growth.coreHy4PredictIngest) && hasReceipt(growth.broadcastHy4PredictAnnounce)) {
+    return {
+      handle: "hy4-predict-app",
+      programId: "0xd24f2886dcb29dec16fc53214b7c8e498b2e96ea55d31a1497571e1ae15f5271",
+      category: "Prediction",
+      summary: hy4PredictSummaryFromReceipt(growth.hy4PredictCurrentBlock, growth.hy4PredictFastMarket),
+      observedAt: new Date().toISOString(),
+      receipts: {
+        marketCreated: growth.hy4PredictMarketCreated,
+        currentBlock: growth.hy4PredictCurrentBlock,
+        fastMarket: growth.hy4PredictFastMarket,
+        coreIngest: growth.coreHy4PredictIngest,
+        broadcastAnnounce: growth.broadcastHy4PredictAnnounce
+      }
+    };
+  }
+
+  return undefined;
+}
+
+function tupleLength(value, index) {
+  const item = Array.isArray(value) ? value[index] : undefined;
+  return Array.isArray(item) ? item.length : 0;
+}
+
+function theBookDexSummaryFromReceipt(statusReceipt, orderbookReceipt, poolsReceipt) {
+  const status = statusReceipt?.result?.ok ?? statusReceipt?.result?.Ok ?? statusReceipt?.result?.value ?? statusReceipt?.result;
+  const orderbook = orderbookReceipt?.result?.ok ?? orderbookReceipt?.result?.Ok ?? orderbookReceipt?.result?.value ?? orderbookReceipt?.result;
+  const pools = poolsReceipt?.result?.ok ?? poolsReceipt?.result?.Ok ?? poolsReceipt?.result?.value ?? poolsReceipt?.result;
+  const statusText = Array.isArray(status) ? `status ${status.join("/")}` : `status ${JSON.stringify(status ?? "unknown")}`;
+  return [
+    "thebookdex DEX read",
+    statusText,
+    `ETH book ${tupleLength(orderbook, 0)} bids / ${tupleLength(orderbook, 1)} asks`,
+    `${Array.isArray(pools) ? pools.length : 0} AMM pools`
+  ].join("; ");
+}
+
+function latestTheBookDexIntegration(growth, theBookDex) {
+  if (theBookDex) {
+    return {
+      handle: "thebookdex",
+      programId: "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",
+      category: "DEX",
+      summary: theBookDex.summary,
+      observedAt: theBookDex.observedAt,
+      receipts: theBookDex.receipts
+    };
+  }
+
+  if (hasReceipt(growth.theBookDexSignalCollab) && hasReceipt(growth.coreTheBookDexIngest) && hasReceipt(growth.broadcastTheBookDexAnnounce)) {
+    return {
+      handle: "thebookdex",
+      programId: "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",
+      category: "DEX",
+      summary: theBookDexSummaryFromReceipt(growth.theBookDexStatus, growth.theBookDexOrderbook, growth.theBookDexPools),
+      observedAt: new Date().toISOString(),
+      receipts: {
+        signalCollab: growth.theBookDexSignalCollab,
+        status: growth.theBookDexStatus,
+        orderbook: growth.theBookDexOrderbook,
+        pools: growth.theBookDexPools,
+        coreIngest: growth.coreTheBookDexIngest,
+        broadcastAnnounce: growth.broadcastTheBookDexAnnounce
+      }
+    };
+  }
+
+  return undefined;
+}
+
 async function readEcosystemIndex() {
   const query = `
     query A2ARadarEcosystemIndex {
@@ -360,9 +461,15 @@ const treasury = BigInt(unwrap(runJson("vara-wallet", [
 const smoke = readJson("artifacts/deploy/live-smoke-results.json", {});
 const growthReceipts = readJson("artifacts/deploy/growth-loop-receipts.json", []);
 const varaBridgeReceipts = readJson("artifacts/deploy/varabridge-integration-receipts.json", []);
+const hy4PredictReceipts = readJson("artifacts/deploy/hy4-predict-integration-receipts.json", []);
+const theBookDexReceipts = readJson("artifacts/deploy/thebookdex-integration-receipts.json", []);
 const growth = growthReceipts.at(-1)?.receipts ?? {};
 const varaBridge = varaBridgeReceipts.at(-1);
+const hy4Predict = hy4PredictReceipts.at(-1);
+const theBookDex = theBookDexReceipts.at(-1);
 const verifiedVaraBridge = latestVaraBridgeIntegration(growth, varaBridge);
+const verifiedHy4Predict = latestHy4PredictIntegration(growth, hy4Predict);
+const verifiedTheBookDex = latestTheBookDexIntegration(growth, theBookDex);
 console.log("Reading Vara Agent Network indexer");
 const ecosystemIndex = await readEcosystemIndex();
 const activity = [
@@ -381,9 +488,29 @@ const activity = [
   txActivity("OutgoingCall", growth.varaBridgeQuery, "Growth loop: A2A Radar queried VaraBridge oracle data."),
   txActivity("DemandRequest", growth.coreVaraBridgeIngest, "Growth loop: Core ingested a real VaraBridge oracle signal."),
   txActivity("IntegrationPact", growth.broadcastVaraBridgeAnnounce, "Growth loop: Broadcast announced VaraBridge integration context."),
+  txActivity("OutgoingCall", growth.hy4PredictCurrentBlock, "Growth loop: A2A Radar read hy4-predict current block."),
+  txActivity("OutgoingCall", growth.hy4PredictFastMarket, "Growth loop: A2A Radar read a hy4-predict FastMarket."),
+  txActivity("OutgoingCall", growth.hy4PredictMarketCreated, "Growth loop: A2A Radar created a hy4-predict market."),
+  txActivity("DemandRequest", growth.coreHy4PredictIngest, "Growth loop: Core ingested a real hy4-predict market signal."),
+  txActivity("IntegrationPact", growth.broadcastHy4PredictAnnounce, "Growth loop: Broadcast announced hy4-predict integration context."),
+  txActivity("IntegrationPact", growth.theBookDexSignalCollab, "Growth loop: A2A Radar signaled collaboration with thebookdex."),
+  txActivity("OutgoingCall", growth.theBookDexStatus, "Growth loop: A2A Radar read thebookdex DEX status."),
+  txActivity("OutgoingCall", growth.theBookDexOrderbook, "Growth loop: A2A Radar read thebookdex orderbook."),
+  txActivity("DemandRequest", growth.coreTheBookDexIngest, "Growth loop: Core ingested a real thebookdex market signal."),
+  txActivity("IntegrationPact", growth.broadcastTheBookDexAnnounce, "Growth loop: Broadcast announced thebookdex integration context."),
   txActivity("OutgoingCall", varaBridge?.receipts?.varaBridgeQuery, "A2A Radar queried VaraBridge oracle data."),
   txActivity("DemandRequest", varaBridge?.receipts?.coreIngest, "Core ingested a real VaraBridge oracle signal."),
-  txActivity("IntegrationPact", varaBridge?.receipts?.broadcastAnnounce, "Broadcast announced VaraBridge integration context.")
+  txActivity("IntegrationPact", varaBridge?.receipts?.broadcastAnnounce, "Broadcast announced VaraBridge integration context."),
+  txActivity("OutgoingCall", hy4Predict?.receipts?.currentBlock, "A2A Radar read hy4-predict current block."),
+  txActivity("OutgoingCall", hy4Predict?.receipts?.fastMarket, "A2A Radar read a hy4-predict FastMarket."),
+  txActivity("OutgoingCall", hy4Predict?.receipts?.marketCreated, "A2A Radar created a hy4-predict market."),
+  txActivity("DemandRequest", hy4Predict?.receipts?.coreIngest, "Core ingested a real hy4-predict market signal."),
+  txActivity("IntegrationPact", hy4Predict?.receipts?.broadcastAnnounce, "Broadcast announced hy4-predict integration context."),
+  txActivity("IntegrationPact", theBookDex?.receipts?.signalCollab, "A2A Radar signaled collaboration with thebookdex."),
+  txActivity("OutgoingCall", theBookDex?.receipts?.status, "A2A Radar read thebookdex DEX status."),
+  txActivity("OutgoingCall", theBookDex?.receipts?.orderbook, "A2A Radar read thebookdex orderbook."),
+  txActivity("DemandRequest", theBookDex?.receipts?.coreIngest, "Core ingested a real thebookdex market signal."),
+  txActivity("IntegrationPact", theBookDex?.receipts?.broadcastAnnounce, "Broadcast announced thebookdex integration context.")
 ].filter(Boolean);
 
 const latestSubscriptions = [
@@ -428,9 +555,31 @@ const snapshot = {
       growth.varaBridgeQuery,
       growth.coreVaraBridgeIngest,
       growth.broadcastVaraBridgeAnnounce,
+      growth.hy4PredictCurrentBlock,
+      growth.hy4PredictFastMarket,
+      growth.hy4PredictMarketCreated,
+      growth.coreHy4PredictIngest,
+      growth.broadcastHy4PredictAnnounce,
+      growth.theBookDexSignalCollab,
+      growth.theBookDexStatus,
+      growth.theBookDexOrderbook,
+      growth.theBookDexPools,
+      growth.coreTheBookDexIngest,
+      growth.broadcastTheBookDexAnnounce,
       varaBridge?.receipts?.varaBridgeQuery,
       varaBridge?.receipts?.coreIngest,
-      varaBridge?.receipts?.broadcastAnnounce
+      varaBridge?.receipts?.broadcastAnnounce,
+      hy4Predict?.receipts?.currentBlock,
+      hy4Predict?.receipts?.fastMarket,
+      hy4Predict?.receipts?.marketCreated,
+      hy4Predict?.receipts?.coreIngest,
+      hy4Predict?.receipts?.broadcastAnnounce,
+      theBookDex?.receipts?.signalCollab,
+      theBookDex?.receipts?.status,
+      theBookDex?.receipts?.orderbook,
+      theBookDex?.receipts?.pools,
+      theBookDex?.receipts?.coreIngest,
+      theBookDex?.receipts?.broadcastAnnounce
     ].filter((row) => row?.messageId).length,
     incomingCallTargets: Number(counts?.[0] ?? 0)
   },
@@ -470,10 +619,14 @@ const snapshot = {
     { from: "Market", to: "Core", purpose: "paid_signal_packaging", observedAtMs: Date.now() },
     { from: "Broadcast", to: "Core", purpose: "demand_feedback", observedAtMs: Date.now() },
     { from: "Market", to: "Core", purpose: "purchase_report", observedAtMs: Date.now() },
-    verifiedVaraBridge ? { from: "Core", to: "Broadcast", purpose: "varabridge_oracle_context", observedAtMs: Date.now() } : undefined
+    verifiedVaraBridge ? { from: "Core", to: "Broadcast", purpose: "varabridge_oracle_context", observedAtMs: Date.now() } : undefined,
+    verifiedHy4Predict ? { from: "Core", to: "Broadcast", purpose: "hy4_predict_market_context", observedAtMs: Date.now() } : undefined,
+    verifiedTheBookDex ? { from: "Core", to: "Broadcast", purpose: "thebookdex_market_depth_context", observedAtMs: Date.now() } : undefined
   ].filter(Boolean),
   externalIntegrations: [
-    verifiedVaraBridge
+    verifiedVaraBridge,
+    verifiedHy4Predict,
+    verifiedTheBookDex
   ].filter(Boolean),
   raw: {
     programIds: ids,
@@ -481,7 +634,9 @@ const snapshot = {
     marketTreasuryRaw: treasury.toString(),
     smokeReceipts: smoke,
     latestGrowthReceipts: growth,
-    latestVaraBridgeIntegration: verifiedVaraBridge
+    latestVaraBridgeIntegration: verifiedVaraBridge,
+    latestHy4PredictIntegration: verifiedHy4Predict,
+    latestTheBookDexIntegration: verifiedTheBookDex
   }
 };
 
