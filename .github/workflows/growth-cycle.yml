@@ -12,10 +12,16 @@ jobs:
       - name: Trigger secured growth endpoint
         id: growth
         run: |
-          response="$(curl --fail-with-body -sS -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" -X POST "$GROWTH_API_URL/api/run-growth-cycle" \
             -H "Authorization: Bearer $GROWTH_API_SECRET" \
             -H "Content-Type: application/json")"
+          response="$(cat "$response_file")"
           echo "$response"
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Growth endpoint failed with HTTP $http_code"
+            exit 1
+          fi
           skipped="$(node -e 'const fs=require("node:fs"); const body=fs.readFileSync(0,"utf8"); const json=JSON.parse(body); process.stdout.write(String(json.skipped === true));' <<< "$response")"
           echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
         env:
@@ -25,9 +31,16 @@ jobs:
       - name: Refresh indexed dashboard snapshot
         if: steps.growth.outputs.skipped == 'false'
         run: |
-          curl --fail-with-body -sS -X POST "$GROWTH_API_URL/api/index-chain" \
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" -X POST "$GROWTH_API_URL/api/index-chain" \
             -H "Authorization: Bearer $GROWTH_API_SECRET" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json")"
+          response="$(cat "$response_file")"
+          echo "$response"
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Index endpoint failed with HTTP $http_code"
+            exit 1
+          fi
         env:
           GROWTH_API_URL: ${{ secrets.GROWTH_API_URL }}
           GROWTH_API_SECRET: ${{ secrets.GROWTH_API_SECRET }}

@@ -167,6 +167,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       const result = await runGrowthCycle({ repoRoot });
       sendJson(response, 200, result);
     } catch (error) {
+      console.error("Growth cycle failed", error instanceof Error ? error.message : error);
       sendJson(response, 500, {
         ok: false,
         error: error instanceof Error ? error.message : "growth cycle failed"

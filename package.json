@@ -6,6 +6,7 @@
 	"scripts": {
 		"check": "npm run check --workspaces --if-present",
 		"dev": "npm run dev --workspace @a2a-radar/dashboard",
+		"dashboard:build": "npm run build --workspace @a2a-radar/dashboard",
 		"api": "npm run dev --workspace @a2a-radar/api",
 		"api:dev": "npm run dev --workspace @a2a-radar/api",
 		"api:start": "npm run start --workspace @a2a-radar/api",
