@@ -130,6 +130,51 @@ function readVoucher(root: string) {
   return process.env.VOUCHER_ID ?? readJson<{ voucherId?: string }>(root, "artifacts/deploy/voucher.json", {}).voucherId;
 }
 
+function operatorAccount(root: string) {
+  const fromEnv = process.env.OPERATOR_HEX;
+  if (fromEnv?.startsWith("0x")) return fromEnv;
+
+  const wallet = readJson<{ address?: string; addressHex?: string }>(root, "artifacts/deploy/wallet-status.json", {});
+  const fromFile = wallet.address ?? wallet.addressHex;
+  if (fromFile?.startsWith("0x")) return fromFile;
+
+  const balance = runJson(root, varaWalletArgs(["balance"]));
+  const fromWallet = typeof balance.address === "string" ? balance.address : undefined;
+  if (fromWallet?.startsWith("0x")) return fromWallet;
+
+  throw new Error("Cannot refresh voucher: missing operator hex. Set OPERATOR_HEX or ensure the Render wallet import succeeded.");
+}
+
+async function requestVoucher(root: string, programId: string) {
+  const account = operatorAccount(root);
+  const voucherUrl = process.env.VOUCHER_URL ?? "https://voucher-backend-agents.vara.network/voucher";
+  const response = await fetch(voucherUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ account, programs: [programId] })
+  });
+  const body = await response.json().catch(() => ({})) as { voucherId?: string; error?: string };
+
+  if (![200, 201, 429].includes(response.status)) {
+    throw new Error(`Voucher refresh failed with HTTP ${response.status}${body.error ? `: ${body.error}` : ""}`);
+  }
+  if (!body.voucherId) {
+    throw new Error(`Voucher refresh did not return a voucher id for operator ${account}`);
+  }
+
+  const result = {
+    account,
+    pid: programId,
+    voucherUrl,
+    voucherId: body.voucherId,
+    state: { ...body, httpStatus: response.status },
+    generatedAt: new Date().toISOString()
+  };
+  process.env.VOUCHER_ID = body.voucherId;
+  writeJson(root, "artifacts/deploy/voucher.json", result);
+  return body.voucherId;
+}
+
 function withVoucher(root: string, args: string[]) {
   const voucher = readVoucher(root);
   return voucher ? [...args, "--voucher", voucher] : args;
@@ -156,6 +201,11 @@ function runJson(root: string, args: string[]) {
     throw new Error(`vara-wallet ${args.join(" ")} failed${details ? `: ${details}` : ""}`);
   }
   return parseJsonOutput(result.stdout ?? "");
+}
+
+function isVoucherExpiredError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("VOUCHER_EXPIRED") || /Voucher expired/i.test(message);
 }
 
 function call(root: string, programId: string, method: string, args: unknown[], idl: string, extra: string[] = []) {
@@ -187,15 +237,7 @@ function unwrap(value: JsonObject) {
   return result?.ok ?? result?.Ok ?? result ?? value;
 }
 
-function boardPost(root: string, app: string, title: string, body: string, tags: string[]) {
-  const boardPid = process.env.BOARD_PID ?? process.env.REGISTRY_PID;
-  const boardIdl = resolveRuntimePath(root, process.env.BOARD_IDL ?? process.env.REGISTRY_IDL ?? process.env.IDL);
-  if (!boardPid || !boardIdl) {
-    return { skipped: true, reason: "BOARD_PID and BOARD_IDL/IDL not set" };
-  }
-  if (!existsSync(boardIdl)) {
-    throw new Error(`BOARD_IDL file does not exist: ${boardIdl}`);
-  }
+function runBoardPost(root: string, boardPid: string, boardIdl: string, app: string, title: string, body: string, tags: string[]) {
   return runJson(root, varaWalletArgs(withVoucher(root, [
     "call",
     boardPid,
@@ -205,6 +247,33 @@ function boardPost(root: string, app: string, title: string, body: string, tags:
     "--idl",
     boardIdl
   ])));
+}
+
+async function boardPost(root: string, app: string, title: string, body: string, tags: string[]) {
+  const boardPid = process.env.BOARD_PID ?? process.env.REGISTRY_PID;
+  const boardIdl = resolveRuntimePath(root, process.env.BOARD_IDL ?? process.env.REGISTRY_IDL ?? process.env.IDL);
+  if (!boardPid || !boardIdl) {
+    return { skipped: true, reason: "BOARD_PID and BOARD_IDL/IDL not set" };
+  }
+  if (!existsSync(boardIdl)) {
+    throw new Error(`BOARD_IDL file does not exist: ${boardIdl}`);
+  }
+  try {
+    return runBoardPost(root, boardPid, boardIdl, app, title, body, tags);
+  } catch (error) {
+    if (isVoucherExpiredError(error)) {
+      if (process.env.VOUCHER_AUTO_REFRESH === "0") {
+        return {
+          skipped: true,
+          reason: "VOUCHER_EXPIRED",
+          action: "Set VOUCHER_AUTO_REFRESH=1 or refresh VOUCHER_ID before Board writes can resume."
+        };
+      }
+      await requestVoucher(root, boardPid);
+      return runBoardPost(root, boardPid, boardIdl, app, title, body, tags);
+    }
+    throw error;
+  }
 }
 
 function countExecuted(receipts: JsonObject) {
@@ -388,7 +457,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     };
     const hotCluster = reportWithBothCases.hot_clusters?.[0]?.label ?? reportWithBothCases.hotClusters?.[0]?.label ?? "live demand";
     const topAgent = reportWithBothCases.top_agents?.[0]?.handle ?? reportWithBothCases.topAgents?.[0]?.handle ?? "forming";
-    receipts.boardAnnouncement = boardPost(
+    receipts.boardAnnouncement = await boardPost(
       root,
       ids.broadcast,
       "A2A Radar leaderboard pulse",

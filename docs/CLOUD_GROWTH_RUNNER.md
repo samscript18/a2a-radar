@@ -77,9 +77,19 @@ IDL=agent-network/idl/agents_network_client.idl
 REGISTRY_IDL=agent-network/idl/agents_network_client.idl
 BOARD_IDL=agent-network/idl/agents_network_client.idl
 VOUCHER_ID=<voucher id>
+VOUCHER_AUTO_REFRESH=1
 ```
 
 `render:start` resolves these paths relative to the repository root (`process.cwd()`). Do not use local machine paths or hardcoded Render paths such as `/opt/render/project/src/...`.
+
+Voucher behavior:
+
+- `VOUCHER_ID` is used for Registry, Chat, and Board writes.
+- If a Board write returns `VOUCHER_EXPIRED`, the API can request a fresh voucher from the official voucher service and retry the Board post once.
+- Keep `VOUCHER_AUTO_REFRESH=1` enabled on Render.
+- Set `OPERATOR_HEX=<operator wallet hex>` if Render cannot derive the operator address from the imported wallet.
+- The refreshed voucher is stored in `artifacts/deploy/voucher.json` inside the Render runtime and used by later growth cycles.
+- No wallet seed, mnemonic, keyring JSON, or passphrase is printed.
 
 Startup prints safe diagnostics:
 
