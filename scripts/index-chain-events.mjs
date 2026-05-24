@@ -165,6 +165,38 @@ function hasReceipt(receipt) {
   return Boolean(receipt?.messageId || receipt?.txHash);
 }
 
+function uniqueBy(items, keyFor) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item) return false;
+    const key = keyFor(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function previousVerifiedIntegration(previousSnapshot, handle, rawKey) {
+  const rawIntegration = previousSnapshot?.raw?.[rawKey];
+  if (rawIntegration?.handle === handle) return rawIntegration;
+  return (previousSnapshot?.externalIntegrations ?? []).find((integration) => integration.handle === handle);
+}
+
+function stableVerifiedIntegration(current, previousSnapshot, handle, rawKey) {
+  return current ?? previousVerifiedIntegration(previousSnapshot, handle, rawKey);
+}
+
+function latestGrowthReceiptsMatching(growthReceipts, predicate) {
+  return [...growthReceipts]
+    .reverse()
+    .map((cycle) => cycle?.receipts ?? {})
+    .find(predicate) ?? {};
+}
+
+function mergeByKey(current, previous, keyFor) {
+  return uniqueBy([...current, ...(previous ?? [])], keyFor);
+}
+
 function varaBridgeSummaryFromReceipt(receipt) {
   const value = receipt?.result?.value ?? receipt?.result?.ok?.value ?? receipt?.result?.Ok?.value;
   const prices = Array.isArray(value?.prices) ? value.prices : [];
@@ -236,7 +268,18 @@ function latestHy4PredictIntegration(growth, hy4Predict) {
       category: "Prediction",
       summary: hy4Predict.summary,
       observedAt: hy4Predict.observedAt,
-      receipts: hy4Predict.receipts
+      receipts: {
+        marketCreated: hy4Predict.receipts?.marketCreated,
+        currentBlock: hy4Predict.receipts?.currentBlock,
+        fastMarket: hy4Predict.receipts?.fastMarket,
+        coreIngest: hy4Predict.receipts?.coreIngest,
+        broadcastAnnounce: hy4Predict.receipts?.broadcastAnnounce,
+        hy4PredictMarketCreated: hy4Predict.receipts?.marketCreated,
+        hy4PredictCurrentBlock: hy4Predict.receipts?.currentBlock,
+        hy4PredictFastMarket: hy4Predict.receipts?.fastMarket,
+        coreHy4PredictIngest: hy4Predict.receipts?.coreIngest,
+        broadcastHy4PredictAnnounce: hy4Predict.receipts?.broadcastAnnounce
+      }
     };
   }
 
@@ -459,20 +502,48 @@ const treasury = BigInt(unwrap(runJson("vara-wallet", [
 ])) ?? "0");
 
 const smoke = readJson("artifacts/deploy/live-smoke-results.json", {});
+const previousSnapshot = readJson("artifacts/latest-snapshot.json", {});
 const growthReceipts = readJson("artifacts/deploy/growth-loop-receipts.json", []);
 const varaBridgeReceipts = readJson("artifacts/deploy/varabridge-integration-receipts.json", []);
 const hy4PredictReceipts = readJson("artifacts/deploy/hy4-predict-integration-receipts.json", []);
 const theBookDexReceipts = readJson("artifacts/deploy/thebookdex-integration-receipts.json", []);
 const growth = growthReceipts.at(-1)?.receipts ?? {};
+const latestVaraBridgeGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceipt(receipts.varaBridgeQuery) && hasReceipt(receipts.coreVaraBridgeIngest) && hasReceipt(receipts.broadcastVaraBridgeAnnounce)
+);
+const latestHy4PredictGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceipt(receipts.hy4PredictFastMarket) && hasReceipt(receipts.coreHy4PredictIngest) && hasReceipt(receipts.broadcastHy4PredictAnnounce)
+);
+const latestTheBookDexGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceipt(receipts.theBookDexSignalCollab) && hasReceipt(receipts.coreTheBookDexIngest) && hasReceipt(receipts.broadcastTheBookDexAnnounce)
+);
 const varaBridge = varaBridgeReceipts.at(-1);
 const hy4Predict = hy4PredictReceipts.at(-1);
 const theBookDex = theBookDexReceipts.at(-1);
-const verifiedVaraBridge = latestVaraBridgeIntegration(growth, varaBridge);
-const verifiedHy4Predict = latestHy4PredictIntegration(growth, hy4Predict);
-const verifiedTheBookDex = latestTheBookDexIntegration(growth, theBookDex);
+const verifiedVaraBridge = stableVerifiedIntegration(
+  latestVaraBridgeIntegration(latestVaraBridgeGrowth, varaBridge),
+  previousSnapshot,
+  "varabridge",
+  "latestVaraBridgeIntegration"
+);
+const verifiedHy4Predict = stableVerifiedIntegration(
+  latestHy4PredictIntegration(latestHy4PredictGrowth, hy4Predict),
+  previousSnapshot,
+  "hy4-predict-app",
+  "latestHy4PredictIntegration"
+);
+const verifiedTheBookDex = stableVerifiedIntegration(
+  latestTheBookDexIntegration(latestTheBookDexGrowth, theBookDex),
+  previousSnapshot,
+  "thebookdex",
+  "latestTheBookDexIntegration"
+);
 console.log("Reading Vara Agent Network indexer");
 const ecosystemIndex = await readEcosystemIndex();
-const activity = [
+const currentActivity = [
   txActivity("DemandRequest", smoke.ingest, "Core accepted a live demand signal."),
   txActivity("OutgoingCall", smoke.report, "Core generated a report for Broadcast."),
   txActivity("BoardPost", smoke.broadcast, "Broadcast published a live trend summary event."),
@@ -512,8 +583,9 @@ const activity = [
   txActivity("DemandRequest", theBookDex?.receipts?.coreIngest, "Core ingested a real thebookdex market signal."),
   txActivity("IntegrationPact", theBookDex?.receipts?.broadcastAnnounce, "Broadcast announced thebookdex integration context.")
 ].filter(Boolean);
+const activity = mergeByKey(currentActivity, previousSnapshot.activity, (item) => `${item.kind}:${item.source}`);
 
-const latestSubscriptions = [
+const currentLatestSubscriptions = [
   smoke.subscription?.messageId ? {
     id: smoke.subscription.messageId,
     tier: "Pulse",
@@ -529,6 +601,7 @@ const latestSubscriptions = [
     source: "growth-loop"
   } : undefined
 ].filter(Boolean);
+const latestSubscriptions = mergeByKey(currentLatestSubscriptions, previousSnapshot.latestSubscriptions, (item) => item.id);
 
 const growthTimeline = [
   ...activity.slice(-8).map((item) => timelineItem(item.kind, item.metadata, item.observedAtMs, item.source)),
@@ -536,14 +609,50 @@ const growthTimeline = [
   ...ecosystemIndex.ecosystemInteractions.slice(0, 4).map((item) => timelineItem("Ecosystem", `${item.callerHandle ?? "unknown"} -> ${item.calleeHandle ?? "unknown"}`, item.observedAtMs, item.kind))
 ].sort((a, b) => b.observedAtMs - a.observedAtMs);
 
+const currentEconomicInteractions = [
+  smoke.subscription?.messageId ? {
+    payer: smoke.subscription.messageId,
+    amount: { amount: "25000000000", asset: "VARA" },
+    purpose: "Pulse subscription",
+    observedAtMs: Date.now()
+  } : undefined,
+  growth.marketPaidRecommendation?.messageId ? {
+    payer: growth.marketPaidRecommendation.messageId,
+    amount: { amount: "10000000000", asset: "VARA" },
+    purpose: "Paid integration recommendation",
+    observedAtMs: Date.now()
+  } : undefined,
+  growth.marketSubscription?.messageId ? {
+    payer: growth.marketSubscription.messageId,
+    amount: { amount: "25000000000", asset: "VARA" },
+    purpose: "Growth Pulse subscription",
+    observedAtMs: Date.now()
+  } : undefined
+].filter(Boolean);
+const economicInteractions = mergeByKey(currentEconomicInteractions, previousSnapshot.economicInteractions, (item) => `${item.purpose}:${item.payer}`);
+
+const externalIntegrations = mergeByKey(
+  [
+    verifiedVaraBridge,
+    verifiedHy4Predict,
+    verifiedTheBookDex
+  ].filter(Boolean),
+  previousSnapshot.externalIntegrations,
+  (item) => item.handle
+);
+
 const snapshot = {
   generatedAt: new Date().toISOString(),
   counts: {
     registeredAgents: 3,
     signals: Number(counts?.[1] ?? 0),
-    subscriptions: [smoke.subscription, growth.marketSubscription].filter((row) => row?.messageId).length,
-    referrals: smoke.referral?.messageId ? 1 : 0,
-    outgoingIntegrations: [
+    subscriptions: Math.max(
+      [smoke.subscription, growth.marketSubscription].filter((row) => row?.messageId).length,
+      latestSubscriptions.length,
+      Number(previousSnapshot.counts?.subscriptions ?? 0)
+    ),
+    referrals: Math.max(smoke.referral?.messageId ? 1 : 0, Number(previousSnapshot.counts?.referrals ?? 0)),
+    outgoingIntegrations: Math.max([
       smoke.report,
       smoke.premium,
       smoke.broadcast,
@@ -580,7 +689,7 @@ const snapshot = {
       theBookDex?.receipts?.pools,
       theBookDex?.receipts?.coreIngest,
       theBookDex?.receipts?.broadcastAnnounce
-    ].filter((row) => row?.messageId).length,
+    ].filter((row) => row?.messageId).length, Number(previousSnapshot.counts?.outgoingIntegrations ?? 0), externalIntegrations.length),
     incomingCallTargets: Number(counts?.[0] ?? 0)
   },
   leaderboard: ranking,
@@ -593,26 +702,7 @@ const snapshot = {
   latestSubscriptions,
   growthTimeline,
   activity,
-  economicInteractions: [
-    smoke.subscription?.messageId ? {
-      payer: smoke.subscription.messageId,
-      amount: { amount: "25000000000", asset: "VARA" },
-      purpose: "Pulse subscription",
-      observedAtMs: Date.now()
-    } : undefined,
-    growth.marketPaidRecommendation?.messageId ? {
-      payer: growth.marketPaidRecommendation.messageId,
-      amount: { amount: "10000000000", asset: "VARA" },
-      purpose: "Paid integration recommendation",
-      observedAtMs: Date.now()
-    } : undefined,
-    growth.marketSubscription?.messageId ? {
-      payer: growth.marketSubscription.messageId,
-      amount: { amount: "25000000000", asset: "VARA" },
-      purpose: "Growth Pulse subscription",
-      observedAtMs: Date.now()
-    } : undefined
-  ].filter(Boolean),
+  economicInteractions,
   crossAgentCalls: [
     { from: "Core", to: "Broadcast", purpose: "report_for_broadcast", observedAtMs: Date.now() },
     { from: "Core", to: "Market", purpose: "premium_signals_for_market", observedAtMs: Date.now() },
@@ -623,11 +713,7 @@ const snapshot = {
     verifiedHy4Predict ? { from: "Core", to: "Broadcast", purpose: "hy4_predict_market_context", observedAtMs: Date.now() } : undefined,
     verifiedTheBookDex ? { from: "Core", to: "Broadcast", purpose: "thebookdex_market_depth_context", observedAtMs: Date.now() } : undefined
   ].filter(Boolean),
-  externalIntegrations: [
-    verifiedVaraBridge,
-    verifiedHy4Predict,
-    verifiedTheBookDex
-  ].filter(Boolean),
+  externalIntegrations,
   raw: {
     programIds: ids,
     coreCounts: counts,

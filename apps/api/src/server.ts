@@ -29,24 +29,33 @@ async function readSnapshot() {
 }
 
 async function readGrowthReceiptSummary() {
-  const raw = await readFile(growthReceiptsPath, "utf8");
-  const cycles = JSON.parse(raw) as Array<{
-    startedAt?: string;
-    completedAt?: string;
-    receipts?: Record<string, { messageId?: string; txHash?: string; result?: unknown }>;
-  }>;
-  const latest = cycles.at(-1);
-  if (!latest) {
-    return {
-      exists: false,
-      callsExecuted: 0,
-      skipped: true,
-      boardAnnouncementId: null,
-      treasuryDeltaRaw: "0"
-    };
+  try {
+    const raw = await readFile(growthReceiptsPath, "utf8");
+    const cycles = JSON.parse(raw) as Array<{
+      startedAt?: string;
+      completedAt?: string;
+      receipts?: Record<string, { messageId?: string; txHash?: string; result?: unknown }>;
+    }>;
+    const latest = cycles.at(-1);
+    if (latest) {
+      return summarizeGrowthReceipts(latest.receipts ?? {}, latest.startedAt, latest.completedAt);
+    }
+  } catch {
+    // Fall back to the latest indexed snapshot below. Render disks can be rebuilt,
+    // while the snapshot may still contain the most recent real receipt map.
   }
-  const receipts = latest.receipts ?? {};
-  const callsExecuted = Object.values(receipts).filter((receipt) => receipt.messageId || receipt.txHash).length;
+
+  const snapshot = await readSnapshot();
+  const rawSnapshot = snapshot.raw as { latestGrowthReceipts?: Record<string, { messageId?: string; txHash?: string; result?: unknown }> } | undefined;
+  return summarizeGrowthReceipts(rawSnapshot?.latestGrowthReceipts ?? {}, snapshot.generatedAt as string | undefined, snapshot.generatedAt as string | undefined);
+}
+
+function summarizeGrowthReceipts(
+  receipts: Record<string, { messageId?: string; txHash?: string; result?: unknown } | undefined>,
+  startedAt?: string,
+  completedAt?: string
+) {
+  const callsExecuted = Object.values(receipts).filter((receipt) => receipt?.messageId || receipt?.txHash).length;
   const boardResult = receipts.boardAnnouncement?.result;
   const treasuryDeltaRaw = [
     receipts.marketPaidRecommendation?.messageId ? 10_000_000_000n : 0n,
@@ -55,8 +64,8 @@ async function readGrowthReceiptSummary() {
 
   return {
     exists: true,
-    startedAt: latest.startedAt,
-    completedAt: latest.completedAt,
+    startedAt,
+    completedAt,
     callsExecuted,
     skipped: callsExecuted === 0,
     boardAnnouncementId: typeof boardResult === "string" ? boardResult : null,

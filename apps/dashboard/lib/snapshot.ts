@@ -9,6 +9,18 @@ export interface RadarSnapshotRaw {
 	};
 	marketTreasuryRaw?: string;
 	latestGrowthReceipts?: Record<string, { result?: unknown; messageId?: string; txHash?: string }>;
+	latestVaraBridgeIntegration?: ExternalIntegration;
+	latestHy4PredictIntegration?: ExternalIntegration;
+	latestTheBookDexIntegration?: ExternalIntegration;
+}
+
+export interface ExternalIntegration {
+  handle: string;
+  programId: string;
+  category: string;
+  summary: string;
+  observedAt: string;
+  receipts: Record<string, unknown>;
 }
 
 export type DashboardSnapshot = RadarSnapshot & {
@@ -64,19 +76,12 @@ export type DashboardSnapshot = RadarSnapshot & {
 		observedAtMs: number;
     metadata: string;
   }>;
-  externalIntegrations?: Array<{
-    handle: string;
-    programId: string;
-    category: string;
-    summary: string;
-    observedAt: string;
-    receipts: Record<string, unknown>;
-  }>;
+  externalIntegrations?: ExternalIntegration[];
 };
 
 export async function getRadarSnapshot(): Promise<DashboardSnapshot> {
 	try {
-		const apiBase = process.env.NEXT_PUBLIC_RADAR_API_URL ?? process.env.RADAR_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? "http://127.0.0.1:8787";
+		const apiBase = process.env.NEXT_PUBLIC_RADAR_API_URL ?? process.env.RADAR_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL ?? "https://a2a-radar.onrender.com";
 		const response = await fetch(`${apiBase}/snapshot`, { cache: "no-store" });
 		if (!response.ok) {
 			return emptySnapshot;
