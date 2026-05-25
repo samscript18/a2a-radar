@@ -25,14 +25,14 @@ Market reports purchase back to Core
 Default cadence:
 
 ```bash
-GROWTH_LOOP_INTERVAL_MS=300000
-GROWTH_ECONOMIC_INTERVAL_MS=300000
-GROWTH_BOARD_INTERVAL_MS=300000
+GROWTH_LOOP_INTERVAL_MS=60000
+GROWTH_ECONOMIC_INTERVAL_MS=60000
+GROWTH_BOARD_INTERVAL_MS=60000
 ```
 
 Result:
 
-- one growth attempt every 15 minutes
+- one growth attempt every 1 minute
 - paid subscription renewal at a slower interval
 - Board announcement at a slower interval
 - cooldown guard preserved by the API and CLI

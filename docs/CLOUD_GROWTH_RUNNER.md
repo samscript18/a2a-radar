@@ -106,12 +106,12 @@ It does not print wallet secrets, seed phrases, mnemonics, or keyring JSON.
 Cadence:
 
 ```bash
-GROWTH_LOOP_INTERVAL_MS=300000
-GROWTH_ECONOMIC_INTERVAL_MS=300000
-GROWTH_BOARD_INTERVAL_MS=300000
-GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS=300000
-GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS=300000
-GROWTH_DEX_INTEGRATION_INTERVAL_MS=300000
+GROWTH_LOOP_INTERVAL_MS=60000
+GROWTH_ECONOMIC_INTERVAL_MS=60000
+GROWTH_BOARD_INTERVAL_MS=60000
+GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS=60000
+GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS=60000
+GROWTH_DEX_INTEGRATION_INTERVAL_MS=60000
 ```
 
 ## Render Deployment
@@ -180,7 +180,7 @@ GROWTH_API_URL=https://your-cloud-host.example
 GROWTH_API_SECRET=<same secret as cloud env>
 ```
 
-The workflow runs every 15 minutes. The API cooldown is authoritative, so hitting the endpoint every 15 minutes is safe.
+The workflow is configured to request a run every 1 minute. The API cooldown is authoritative, so hitting the endpoint every 1 minute is safe.
 
 ## Security Warning
 

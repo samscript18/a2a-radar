@@ -61,6 +61,21 @@ const THEBOOKDEX = {
   orderbookAsset: { ETH: null }
 } as const;
 
+const VARA_STRATEGY = {
+  programId: "0xe6483fe2fc8fea2dc3e2ee848e0372b9b486e023bb4cb21247a914e8f074aaa7",
+  idl: "integrations/vara-trinity/vara_strategy.idl"
+} as const;
+
+const VARA_FLOW = {
+  programId: "0x19d4b1778cfdf64c732e10640ccff923c4137a7fbed4f1a291e241d3e6361175",
+  idl: "integrations/vara-trinity/vara_flow.idl"
+} as const;
+
+const VARA_PULSE = {
+  programId: "0x51321d7e10b5fa064b6cad675216634336ca2de0e27d0940d184f1548d55f53d",
+  idl: "integrations/vara-trinity/vara_pulse.idl"
+} as const;
+
 function repoRoot(options: GrowthCycleOptions = {}) {
   return resolve(options.repoRoot ?? process.cwd());
 }
@@ -380,6 +395,45 @@ function summarizeTheBookDex(statusReply: unknown, orderbookReply: unknown, pool
   ].join("; ");
 }
 
+function summarizeVaraStrategy(statsReply: unknown, recommendationsReply: unknown) {
+  const stats = statsReply && typeof statsReply === "object" ? statsReply as JsonObject : {};
+  const recommendations = Array.isArray(recommendationsReply) ? recommendationsReply as JsonObject[] : [];
+  const top = recommendations[0];
+  return [
+    "VaraStrategy signal read",
+    `analyzed ${String(stats.total_analyzed ?? stats.totalAnalyzed ?? 0)}`,
+    `posted ${String(stats.total_posted ?? stats.totalPosted ?? 0)}`,
+    `recommendations ${String(stats.recommendations_count ?? stats.recommendationsCount ?? recommendations.length)}`,
+    top ? `top: ${String(top.title ?? top.rec_type ?? "strategy recommendation")}` : "top: none"
+  ].join("; ");
+}
+
+function summarizeVaraFlow(statsReply: unknown, workflowsReply: unknown) {
+  const stats = statsReply && typeof statsReply === "object" ? statsReply as JsonObject : {};
+  const workflows = Array.isArray(workflowsReply) ? workflowsReply as JsonObject[] : [];
+  return [
+    "VaraFlow workflow read",
+    `workflows ${String(stats.workflow_count ?? stats.workflowCount ?? workflows.length)}`,
+    `active ${String(stats.active_workflows ?? stats.activeWorkflows ?? workflows.filter((item) => item.active === true).length)}`,
+    `executions ${String(stats.execution_count ?? stats.executionCount ?? 0)}`,
+    `broadcasts ${String(stats.broadcast_count ?? stats.broadcastCount ?? 0)}`
+  ].join("; ");
+}
+
+function summarizeVaraPulse(statsReply: unknown, latestPulseReply: unknown) {
+  const stats = statsReply && typeof statsReply === "object" ? statsReply as JsonObject : {};
+  const latest = latestPulseReply && typeof latestPulseReply === "object"
+    ? ((latestPulseReply as JsonObject).value as JsonObject | undefined) ?? latestPulseReply as JsonObject
+    : undefined;
+  return [
+    "VaraPulse social pulse read",
+    `pulses ${String(stats.total_pulses ?? stats.totalPulses ?? 0)}`,
+    `nudges ${String(stats.total_nudges ?? stats.totalNudges ?? 0)}`,
+    `board posts ${String(stats.total_board_posts ?? stats.totalBoardPosts ?? 0)}`,
+    latest ? `latest: ${String(latest.body ?? "pulse available").slice(0, 96)}` : "latest: none"
+  ].join("; ");
+}
+
 export function isAuthorizedGrowthRequest(authHeader: string | undefined, secret = process.env.GROWTH_API_SECRET) {
   if (!secret || !authHeader?.startsWith("Bearer ")) return false;
   const token = authHeader.slice("Bearer ".length);
@@ -391,8 +445,8 @@ export function isAuthorizedGrowthRequest(authHeader: string | undefined, secret
 export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<GrowthCycleResult> {
   const root = repoRoot(options);
   const state = readJson<JsonObject>(root, RELATIVE_STATE_PATH, {});
-  const fiveMinutesMs = 5 * 60 * 1000;
-  const loopIntervalMs = intervalMs("GROWTH_LOOP_INTERVAL_MS", fiveMinutesMs);
+  const oneMinuteMs = 60 * 1000;
+  const loopIntervalMs = intervalMs("GROWTH_LOOP_INTERVAL_MS", oneMinuteMs);
   if (!due(state, "lastCycleAt", loopIntervalMs, options)) {
     return {
       ok: true,
@@ -404,11 +458,11 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
   const ids = resolveProgramIds(root);
   assertLiveV2Ids(ids);
 
-  const economicIntervalMs = intervalMs("GROWTH_ECONOMIC_INTERVAL_MS", fiveMinutesMs);
-  const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", fiveMinutesMs);
-  const externalIntegrationIntervalMs = intervalMs("GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS", fiveMinutesMs);
-  const predictionIntegrationIntervalMs = intervalMs("GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS", fiveMinutesMs);
-  const dexIntegrationIntervalMs = intervalMs("GROWTH_DEX_INTEGRATION_INTERVAL_MS", fiveMinutesMs);
+  const economicIntervalMs = intervalMs("GROWTH_ECONOMIC_INTERVAL_MS", oneMinuteMs);
+  const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", oneMinuteMs);
+  const externalIntegrationIntervalMs = intervalMs("GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS", oneMinuteMs);
+  const predictionIntegrationIntervalMs = intervalMs("GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS", oneMinuteMs);
+  const dexIntegrationIntervalMs = intervalMs("GROWTH_DEX_INTEGRATION_INTERVAL_MS", oneMinuteMs);
   const paidRecommendationValue = process.env.PAID_RECOMMENDATION_VALUE ?? "0.01";
   const subscriptionValue = process.env.PULSE_VALUE ?? "0.025";
   const paymentRaw = process.env.GROWTH_PAYMENT_RAW ?? "10000000000";
@@ -549,6 +603,81 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     state.lastTheBookDexAt = now(options);
   } else {
     receipts.theBookDexSignalCollab = { skipped: true, reason: "DEX integration interval not due" };
+  }
+
+  if (due(state, "lastVaraStrategyAt", externalIntegrationIntervalMs, options)) {
+    const strategyStatsReceipt = callNoArgs(root, VARA_STRATEGY.programId, "VaraStrategy/GetStats", VARA_STRATEGY.idl);
+    const strategyRecommendationsReceipt = call(root, VARA_STRATEGY.programId, "VaraStrategy/GetRecommendations", [3], VARA_STRATEGY.idl);
+    const strategySummary = summarizeVaraStrategy(unwrap(strategyStatsReceipt), unwrap(strategyRecommendationsReceipt));
+    receipts.varaStrategyStats = strategyStatsReceipt;
+    receipts.varaStrategyRecommendations = strategyRecommendationsReceipt;
+    receipts.coreVaraStrategyIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", VARA_STRATEGY.programId, "Marketplace", null, 3, strategySummary],
+      agents.core.idl
+    );
+    receipts.broadcastVaraStrategyAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [VARA_STRATEGY.programId, strategySummary],
+      agents.broadcast.idl
+    );
+    state.lastVaraStrategyAt = now(options);
+  } else {
+    receipts.varaStrategyStats = { skipped: true, reason: "VaraStrategy integration interval not due" };
+  }
+
+  if (due(state, "lastVaraFlowAt", externalIntegrationIntervalMs, options)) {
+    const flowStatsReceipt = callNoArgs(root, VARA_FLOW.programId, "VaraFlow/GetStats", VARA_FLOW.idl);
+    const flowWorkflowsReceipt = call(root, VARA_FLOW.programId, "VaraFlow/ListWorkflows", [null, true], VARA_FLOW.idl);
+    const flowSummary = summarizeVaraFlow(unwrap(flowStatsReceipt), unwrap(flowWorkflowsReceipt));
+    receipts.varaFlowStats = flowStatsReceipt;
+    receipts.varaFlowWorkflows = flowWorkflowsReceipt;
+    receipts.coreVaraFlowIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", VARA_FLOW.programId, "Analytics", null, 3, flowSummary],
+      agents.core.idl
+    );
+    receipts.broadcastVaraFlowAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [VARA_FLOW.programId, flowSummary],
+      agents.broadcast.idl
+    );
+    state.lastVaraFlowAt = now(options);
+  } else {
+    receipts.varaFlowStats = { skipped: true, reason: "VaraFlow integration interval not due" };
+  }
+
+  if (due(state, "lastVaraPulseAt", externalIntegrationIntervalMs, options)) {
+    const pulseStatsReceipt = callNoArgs(root, VARA_PULSE.programId, "VaraPulse/GetStats", VARA_PULSE.idl);
+    const pulseLatestReceipt = callNoArgs(root, VARA_PULSE.programId, "VaraPulse/GetLatestPulse", VARA_PULSE.idl);
+    const pulseSummary = summarizeVaraPulse(unwrap(pulseStatsReceipt), unwrap(pulseLatestReceipt));
+    receipts.varaPulseStats = pulseStatsReceipt;
+    receipts.varaPulseLatest = pulseLatestReceipt;
+    receipts.coreVaraPulseIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", VARA_PULSE.programId, "Social", null, 3, pulseSummary],
+      agents.core.idl
+    );
+    receipts.broadcastVaraPulseAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [VARA_PULSE.programId, pulseSummary],
+      agents.broadcast.idl
+    );
+    state.lastVaraPulseAt = now(options);
+  } else {
+    receipts.varaPulseStats = { skipped: true, reason: "VaraPulse integration interval not due" };
   }
 
   let subscriptions = 0;

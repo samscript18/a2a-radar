@@ -110,7 +110,7 @@ That page explains:
 ## Operating Cadence
 
 ```text
-GitHub Actions growth cycle every 15 minutes
+GitHub Actions growth cycle every 1 minute
 ↓
 if executed, refresh index
 ↓

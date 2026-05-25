@@ -76,9 +76,9 @@ artifacts/deploy/hy4-predict-integration-receipts.json
 The cloud growth cycle also includes a low-frequency hy4-predict read:
 
 ```text
-GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS=300000
+GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS=60000
 ```
 
-Default: 5 minutes.
+Default: 1 minute.
 
 Use this only while actively demonstrating growth. The goal is real partner activity, not spam.

@@ -30,7 +30,7 @@ Core recalculates rankings
    - treasury
    - Board announcement ID
 5. Show recent growth-cycle receipts.
-6. Explain that GitHub Actions can trigger the secured API every 15 minutes.
+6. Explain that GitHub Actions can trigger the secured API every 1 minute.
 7. Close with:
 
 ```text
@@ -45,4 +45,3 @@ npm run index:chain
 ```
 
 If cooldown is active, show the skip response. That proves the system is controlled, not spammy.
-

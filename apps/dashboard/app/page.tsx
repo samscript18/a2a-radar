@@ -576,6 +576,14 @@ function hasReceipt(receipt: { messageId?: string; txHash?: string } | undefined
   return Boolean(receipt?.messageId || receipt?.txHash);
 }
 
+function hasReadResult(receipt: { result?: unknown } | undefined): boolean {
+  return receipt !== undefined && Object.hasOwn(receipt, "result") && receipt.result !== undefined;
+}
+
+function hasReceiptOrReadResult(receipt: { messageId?: string; txHash?: string; result?: unknown } | undefined): boolean {
+  return hasReceipt(receipt) || hasReadResult(receipt);
+}
+
 function observedAtFromSnapshot(snapshot: DashboardSnapshot): number {
   const indexedAt = Date.parse(snapshot.generatedAt);
   return Number.isNaN(indexedAt) ? Date.now() : indexedAt;
@@ -634,7 +642,10 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
   const rawIntegrations = [
     snapshot.raw?.latestVaraBridgeIntegration,
     snapshot.raw?.latestHy4PredictIntegration,
-    snapshot.raw?.latestTheBookDexIntegration
+    snapshot.raw?.latestTheBookDexIntegration,
+    snapshot.raw?.latestVaraStrategyIntegration,
+    snapshot.raw?.latestVaraFlowIntegration,
+    snapshot.raw?.latestVaraPulseIntegration
   ].filter((item): item is ExternalIntegration => Boolean(item));
 
   const receipts = receiptsFor(snapshot);
@@ -654,7 +665,7 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
           }
         }
       : undefined,
-    hasReceipt(receipts.hy4PredictFastMarket) && hasReceipt(receipts.coreHy4PredictIngest) && hasReceipt(receipts.broadcastHy4PredictAnnounce)
+    hasReceiptOrReadResult(receipts.hy4PredictFastMarket) && hasReceipt(receipts.coreHy4PredictIngest) && hasReceipt(receipts.broadcastHy4PredictAnnounce)
       ? {
           handle: "hy4-predict-app",
           programId: "0xd24f2886dcb29dec16fc53214b7c8e498b2e96ea55d31a1497571e1ae15f5271",
@@ -684,6 +695,51 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
             pools: receipts.theBookDexPools,
             coreIngest: receipts.coreTheBookDexIngest,
             broadcastAnnounce: receipts.broadcastTheBookDexAnnounce
+          }
+        }
+      : undefined,
+    hasReceiptOrReadResult(receipts.varaStrategyStats) && hasReceipt(receipts.coreVaraStrategyIngest) && hasReceipt(receipts.broadcastVaraStrategyAnnounce)
+      ? {
+          handle: "varastrategy",
+          programId: "0xe6483fe2fc8fea2dc3e2ee848e0372b9b486e023bb4cb21247a914e8f074aaa7",
+          category: "Strategy",
+          summary: "A2A Radar read VaraStrategy recommendations, routed market strategy context into Core, and announced the signal through Broadcast.",
+          observedAt,
+          receipts: {
+            stats: receipts.varaStrategyStats,
+            recommendations: receipts.varaStrategyRecommendations,
+            coreIngest: receipts.coreVaraStrategyIngest,
+            broadcastAnnounce: receipts.broadcastVaraStrategyAnnounce
+          }
+        }
+      : undefined,
+    hasReceiptOrReadResult(receipts.varaFlowStats) && hasReceipt(receipts.coreVaraFlowIngest) && hasReceipt(receipts.broadcastVaraFlowAnnounce)
+      ? {
+          handle: "varaflow-org",
+          programId: "0x19d4b1778cfdf64c732e10640ccff923c4137a7fbed4f1a291e241d3e6361175",
+          category: "Workflow",
+          summary: "A2A Radar read VaraFlow workflow stats, routed automation context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            stats: receipts.varaFlowStats,
+            workflows: receipts.varaFlowWorkflows,
+            coreIngest: receipts.coreVaraFlowIngest,
+            broadcastAnnounce: receipts.broadcastVaraFlowAnnounce
+          }
+        }
+      : undefined,
+    hasReceiptOrReadResult(receipts.varaPulseStats) && hasReceipt(receipts.coreVaraPulseIngest) && hasReceipt(receipts.broadcastVaraPulseAnnounce)
+      ? {
+          handle: "varapulse",
+          programId: "0x51321d7e10b5fa064b6cad675216634336ca2de0e27d0940d184f1548d55f53d",
+          category: "Social",
+          summary: "A2A Radar read VaraPulse social pulse stats, routed ecosystem heartbeat context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            stats: receipts.varaPulseStats,
+            latest: receipts.varaPulseLatest,
+            coreIngest: receipts.coreVaraPulseIngest,
+            broadcastAnnounce: receipts.broadcastVaraPulseAnnounce
           }
         }
       : undefined

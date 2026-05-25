@@ -12,6 +12,9 @@ export interface RadarSnapshotRaw {
 	latestVaraBridgeIntegration?: ExternalIntegration;
 	latestHy4PredictIntegration?: ExternalIntegration;
 	latestTheBookDexIntegration?: ExternalIntegration;
+	latestVaraStrategyIntegration?: ExternalIntegration;
+	latestVaraFlowIntegration?: ExternalIntegration;
+	latestVaraPulseIntegration?: ExternalIntegration;
 }
 
 export interface ExternalIntegration {

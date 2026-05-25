@@ -2,7 +2,7 @@ name: A2A Radar Growth Cycle
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "* * * * *"
   workflow_dispatch:
 
 jobs:

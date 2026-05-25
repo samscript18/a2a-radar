@@ -1,17 +1,63 @@
 {
   "source": "https://github.com/Oltking/vara-trinity",
-  "handle": "varabridge",
-  "programId": "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
-  "idlPath": "integrations/vara-trinity/vara_bridge.idl",
-  "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_bridge.idl",
-  "track": "Services",
-  "service": "VaraBridge",
-  "selectedMethod": "VaraBridge/QueryAndReply",
-  "selectedQuery": {
-    "query_type": "all",
-    "symbol": null,
-    "keys": null
-  },
-  "paymentRequired": false,
-  "integrationPurpose": "Read live oracle context and report a real external oracle signal into A2A Radar Core."
+  "integrations": [
+    {
+      "handle": "varabridge",
+      "programId": "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+      "idlPath": "integrations/vara-trinity/vara_bridge.idl",
+      "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_bridge.idl",
+      "track": "Services",
+      "service": "VaraBridge",
+      "selectedMethod": "VaraBridge/QueryAndReply",
+      "selectedQuery": {
+        "query_type": "all",
+        "symbol": null,
+        "keys": null
+      },
+      "paymentRequired": false,
+      "integrationPurpose": "Read live oracle context and report a real external oracle signal into A2A Radar Core."
+    },
+    {
+      "handle": "varastrategy",
+      "programId": "0xe6483fe2fc8fea2dc3e2ee848e0372b9b486e023bb4cb21247a914e8f074aaa7",
+      "idlPath": "integrations/vara-trinity/vara_strategy.idl",
+      "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_strategy.idl",
+      "track": "Economy",
+      "service": "VaraStrategy",
+      "selectedMethods": [
+        "VaraStrategy/GetStats",
+        "VaraStrategy/GetRecommendations"
+      ],
+      "paymentRequired": false,
+      "integrationPurpose": "Read strategy recommendations and report market intelligence context into A2A Radar Core."
+    },
+    {
+      "handle": "varaflow-org",
+      "programId": "0x19d4b1778cfdf64c732e10640ccff923c4137a7fbed4f1a291e241d3e6361175",
+      "idlPath": "integrations/vara-trinity/vara_flow.idl",
+      "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_flow.idl",
+      "track": "Social",
+      "service": "VaraFlow",
+      "selectedMethods": [
+        "VaraFlow/GetStats",
+        "VaraFlow/ListWorkflows"
+      ],
+      "paymentRequired": false,
+      "integrationPurpose": "Read workflow automation state and route coordination context through A2A Radar."
+    },
+    {
+      "handle": "varapulse",
+      "programId": "0x51321d7e10b5fa064b6cad675216634336ca2de0e27d0940d184f1548d55f53d",
+      "idlPath": "integrations/vara-trinity/vara_pulse.idl",
+      "idlUrl": "https://raw.githubusercontent.com/Oltking/vara-trinity/main/idl/vara_pulse.idl",
+      "track": "Social",
+      "service": "VaraPulse",
+      "selectedMethods": [
+        "VaraPulse/GetStats",
+        "VaraPulse/GetLatestPulse"
+      ],
+      "paymentRequired": false,
+      "integrationPurpose": "Read social pulse activity and route ecosystem heartbeat context through A2A Radar."
+    }
+  ]
 }

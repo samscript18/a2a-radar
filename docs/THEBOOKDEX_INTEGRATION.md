@@ -73,9 +73,9 @@ artifacts/deploy/thebookdex-integration-receipts.json
 The cloud growth cycle includes a low-frequency thebookdex integration pass:
 
 ```text
-GROWTH_DEX_INTEGRATION_INTERVAL_MS=300000
+GROWTH_DEX_INTEGRATION_INTERVAL_MS=60000
 ```
 
-Default: 5 minutes.
+Default: 1 minute.
 
 Use this only while actively demonstrating growth. The goal is real partner integration, not repeated noise.
