@@ -28,11 +28,15 @@ Default cadence:
 GROWTH_LOOP_INTERVAL_MS=60000
 GROWTH_ECONOMIC_INTERVAL_MS=60000
 GROWTH_BOARD_INTERVAL_MS=600000
+SERVER_GROWTH_COOLDOWN_MS=900000
+SERVER_GROWTH_FAILURE_RETRY_MS=5000
 ```
 
 Result:
 
-- one growth attempt every 1 minute
+- the cloud server runs immediately on startup
+- after a completed growth cycle and chain index refresh, the server cools down for 15 minutes
+- failed server cycles retry quickly instead of waiting for the full cooldown
 - paid subscription renewal at a slower interval
 - Board integration beacon every 10 minutes when due
 - cooldown guard preserved by the API and CLI

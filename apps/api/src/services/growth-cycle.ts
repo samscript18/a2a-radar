@@ -15,6 +15,7 @@ type JsonObject = Record<string, unknown>;
 export interface GrowthCycleOptions {
   repoRoot?: string;
   force?: boolean;
+  ignoreCycleCooldown?: boolean;
   nowMs?: number;
 }
 
@@ -602,7 +603,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
   const state = readJson<JsonObject>(root, RELATIVE_STATE_PATH, {});
   const oneMinuteMs = 60 * 1000;
   const loopIntervalMs = intervalMs("GROWTH_LOOP_INTERVAL_MS", oneMinuteMs);
-  if (!due(state, "lastCycleAt", loopIntervalMs, options)) {
+  if (!options.ignoreCycleCooldown && !due(state, "lastCycleAt", loopIntervalMs, options)) {
     return {
       ok: true,
       skipped: true,

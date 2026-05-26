@@ -15,9 +15,10 @@ const snapshotPath = process.env.RADAR_SNAPSHOT
 const growthReceiptsPath = process.env.RADAR_GROWTH_RECEIPTS
   ? resolve(process.env.RADAR_GROWTH_RECEIPTS)
   : resolve(repoRoot, "artifacts/deploy/growth-loop-receipts.json");
-const serverCronIntervalMs = intervalMs("SERVER_GROWTH_CRON_INTERVAL_MS", 10 * 60 * 1000);
+const serverGrowthCooldownMs = intervalMs("SERVER_GROWTH_COOLDOWN_MS", 15 * 60 * 1000);
+const serverGrowthFailureRetryMs = intervalMs("SERVER_GROWTH_FAILURE_RETRY_MS", 5 * 1000);
 const serverCronEnabled = process.env.SERVER_GROWTH_CRON_ENABLED !== "0";
-let serverCronRunning = false;
+let serverCronLoopStarted = false;
 
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -27,6 +28,13 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
 function intervalMs(name: string, fallback: number) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolveSleep) => {
+    const timer = setTimeout(resolveSleep, ms);
+    timer.unref?.();
+  });
 }
 
 async function readSnapshot() {
@@ -98,8 +106,8 @@ function runIndexChain() {
   };
 }
 
-export async function runGrowthCycleAndRefreshIndex(source = "server-cron") {
-  const growth = await runGrowthCycle({ repoRoot });
+export async function runGrowthCycleAndRefreshIndex(source = "server-cron", options: { ignoreCycleCooldown?: boolean } = {}) {
+  const growth = await runGrowthCycle({ repoRoot, ignoreCycleCooldown: options.ignoreCycleCooldown });
   if (growth.skipped) {
     console.log(`[${source}] growth cycle skipped; next due in ${growth.nextCycleDueInSeconds}s`);
     return { ...growth, indexed: false };
@@ -110,19 +118,17 @@ export async function runGrowthCycleAndRefreshIndex(source = "server-cron") {
   return { ...growth, indexed: true, index };
 }
 
-async function runServerCronTick() {
-  if (serverCronRunning) {
-    console.log("[server-cron] previous growth cycle still running; skipping tick");
-    return;
-  }
-
-  serverCronRunning = true;
-  try {
-    await runGrowthCycleAndRefreshIndex();
-  } catch (error) {
-    console.error("[server-cron] growth cycle failed", error instanceof Error ? error.message : error);
-  } finally {
-    serverCronRunning = false;
+async function runServerGrowthLoop() {
+  while (serverCronEnabled) {
+    try {
+      await runGrowthCycleAndRefreshIndex("server-cron", { ignoreCycleCooldown: true });
+      console.log(`[server-cron] completed; cooling down for ${Math.round(serverGrowthCooldownMs / 1000)}s`);
+      await sleep(serverGrowthCooldownMs);
+    } catch (error) {
+      console.error("[server-cron] growth cycle failed", error instanceof Error ? error.message : error);
+      console.log(`[server-cron] retrying in ${Math.round(serverGrowthFailureRetryMs / 1000)}s because the previous cycle did not complete`);
+      await sleep(serverGrowthFailureRetryMs);
+    }
   }
 }
 
@@ -131,16 +137,11 @@ function startServerCron() {
     console.log("A2A Radar server cron disabled by SERVER_GROWTH_CRON_ENABLED=0");
     return;
   }
+  if (serverCronLoopStarted) return;
 
-  console.log(`A2A Radar server cron enabled: every ${Math.round(serverCronIntervalMs / 1000)}s`);
-  setTimeout(() => {
-    void runServerCronTick();
-  }, 10_000).unref?.();
-
-  const timer = setInterval(() => {
-    void runServerCronTick();
-  }, serverCronIntervalMs);
-  timer.unref?.();
+  serverCronLoopStarted = true;
+  console.log(`A2A Radar server cron enabled: immediate run, then ${Math.round(serverGrowthCooldownMs / 1000)}s cooldown after successful indexing`);
+  void runServerGrowthLoop();
 }
 
 function discoverPayload(snapshot: Record<string, unknown>) {

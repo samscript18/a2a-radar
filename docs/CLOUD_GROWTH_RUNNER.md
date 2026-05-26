@@ -107,7 +107,8 @@ Cadence:
 
 ```bash
 SERVER_GROWTH_CRON_ENABLED=1
-SERVER_GROWTH_CRON_INTERVAL_MS=600000
+SERVER_GROWTH_COOLDOWN_MS=900000
+SERVER_GROWTH_FAILURE_RETRY_MS=5000
 GROWTH_LOOP_INTERVAL_MS=60000
 GROWTH_ECONOMIC_INTERVAL_MS=60000
 GROWTH_BOARD_INTERVAL_MS=600000
@@ -116,7 +117,7 @@ GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS=60000
 GROWTH_DEX_INTEGRATION_INTERVAL_MS=60000
 ```
 
-`SERVER_GROWTH_CRON_INTERVAL_MS` controls the API server's own cron loop. It calls the same growth logic as `POST /api/run-growth-cycle`, then refreshes the indexed dashboard snapshot only when a cycle actually executes.
+`SERVER_GROWTH_COOLDOWN_MS` controls the API server's own completion-based loop. The server runs one growth cycle immediately on startup, refreshes the indexed dashboard snapshot after a successful cycle, then cools down for this duration before starting the next cycle. If a cycle fails before completion, it retries after `SERVER_GROWTH_FAILURE_RETRY_MS` instead of waiting for the full cooldown.
 
 Set `SERVER_GROWTH_CRON_ENABLED=0` if you want GitHub Actions or another external scheduler to be the only trigger.
 
