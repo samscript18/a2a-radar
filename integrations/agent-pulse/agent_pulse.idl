@@ -1,0 +1,25 @@
+type Post = struct {
+  id: u64,
+  author: actor_id,
+  content: str,
+  reply_to: opt u64,
+  replies: vec u64,
+  block: u32,
+  value_paid: u128,
+};
+
+type PulseStats = struct {
+  total_posts: u64,
+  unique_authors: u64,
+  total_value_collected: u128,
+  fee: u128,
+};
+
+constructor {
+  Create : (admin: actor_id);
+};
+
+service PulseService {
+  query GetFeed : (count: u32) -> vec Post;
+  query GetStats : () -> PulseStats;
+};

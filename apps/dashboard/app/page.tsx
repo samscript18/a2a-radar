@@ -628,7 +628,19 @@ function outgoingIntegrationReceiptCount(receipts: ReceiptRecord): number {
     receipts.varaPulseStats,
     receipts.varaPulseLatest,
     receipts.coreVaraPulseIngest,
-    receipts.broadcastVaraPulseAnnounce
+    receipts.broadcastVaraPulseAnnounce,
+    receipts.agentPulseStats,
+    receipts.agentPulseFeed,
+    receipts.coreAgentPulseIngest,
+    receipts.broadcastAgentPulseAnnounce,
+    receipts.infiniteBountyConfig,
+    receipts.infiniteBountyOpen,
+    receipts.coreInfiniteBountyIngest,
+    receipts.broadcastInfiniteBountyAnnounce,
+    receipts.a2aReputationStatus,
+    receipts.a2aReputationLeaderboard,
+    receipts.coreA2aReputationIngest,
+    receipts.broadcastA2aReputationAnnounce
   ].filter(hasReceiptOrReadResult).length;
 }
 
@@ -706,7 +718,10 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
     snapshot.raw?.latestTheBookDexIntegration,
     snapshot.raw?.latestVaraStrategyIntegration,
     snapshot.raw?.latestVaraFlowIntegration,
-    snapshot.raw?.latestVaraPulseIntegration
+    snapshot.raw?.latestVaraPulseIntegration,
+    snapshot.raw?.latestAgentPulseIntegration,
+    snapshot.raw?.latestInfiniteBountyIntegration,
+    snapshot.raw?.latestA2aReputationIntegration
   ].filter((item): item is ExternalIntegration => Boolean(item));
 
   const receipts = receiptsFor(snapshot);
@@ -803,6 +818,51 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
             broadcastAnnounce: receipts.broadcastVaraPulseAnnounce
           }
         }
+      : undefined,
+    hasReceiptOrReadResult(receipts.agentPulseFeed) && hasReceipt(receipts.coreAgentPulseIngest) && hasReceipt(receipts.broadcastAgentPulseAnnounce)
+      ? {
+          handle: "agent-pulse",
+          programId: "0x61219b6e1a0724ac67c2e1133e6c5aaaddbfb88a0b457f93e6b94e02bdb27e6b",
+          category: "Social",
+          summary: "A2A Radar read Agent Pulse feed activity, routed social activity context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            stats: receipts.agentPulseStats,
+            feed: receipts.agentPulseFeed,
+            coreIngest: receipts.coreAgentPulseIngest,
+            broadcastAnnounce: receipts.broadcastAgentPulseAnnounce
+          }
+        }
+      : undefined,
+    hasReceiptOrReadResult(receipts.infiniteBountyOpen) && hasReceipt(receipts.coreInfiniteBountyIngest) && hasReceipt(receipts.broadcastInfiniteBountyAnnounce)
+      ? {
+          handle: "infinite-bounty-v3",
+          programId: "0x747d09594538498f2c64ae91f93131a47b0ce8abaa80a54e37d7a6badadc15e8",
+          category: "Bounties",
+          summary: "A2A Radar read Infinite Bounty open bounty data, routed bounty-market context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            config: receipts.infiniteBountyConfig,
+            openBounties: receipts.infiniteBountyOpen,
+            coreIngest: receipts.coreInfiniteBountyIngest,
+            broadcastAnnounce: receipts.broadcastInfiniteBountyAnnounce
+          }
+        }
+      : undefined,
+    hasReceiptOrReadResult(receipts.a2aReputationStatus) && hasReceipt(receipts.coreA2aReputationIngest) && hasReceipt(receipts.broadcastA2aReputationAnnounce)
+      ? {
+          handle: "a2a-reputation",
+          programId: "0x3c006c9daf828aa6dd237c012ea683335ffb2d455e443d7d9ab3593612f30775",
+          category: "Reputation",
+          summary: "A2A Radar read A2A Reputation oracle status, routed reputation context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            status: receipts.a2aReputationStatus,
+            leaderboard: receipts.a2aReputationLeaderboard,
+            coreIngest: receipts.coreA2aReputationIngest,
+            broadcastAnnounce: receipts.broadcastA2aReputationAnnounce
+          }
+        }
       : undefined
   ];
 
@@ -856,6 +916,27 @@ const KNOWN_EXTERNAL_INTEGRATIONS = [
     category: "Social",
     match: ["varapulse"],
     summary: "A2A Radar read VaraPulse social pulse stats and routed ecosystem heartbeat context into Core and Broadcast."
+  },
+  {
+    handle: "agent-pulse",
+    programId: "0x61219b6e1a0724ac67c2e1133e6c5aaaddbfb88a0b457f93e6b94e02bdb27e6b",
+    category: "Social",
+    match: ["agent pulse", "agent-pulse"],
+    summary: "A2A Radar read Agent Pulse feed activity and routed social activity context into Core and Broadcast."
+  },
+  {
+    handle: "infinite-bounty-v3",
+    programId: "0x747d09594538498f2c64ae91f93131a47b0ce8abaa80a54e37d7a6badadc15e8",
+    category: "Bounties",
+    match: ["infinite bounty", "infinite-bounty"],
+    summary: "A2A Radar read Infinite Bounty open bounty data and routed bounty-market context into Core and Broadcast."
+  },
+  {
+    handle: "a2a-reputation",
+    programId: "0x3c006c9daf828aa6dd237c012ea683335ffb2d455e443d7d9ab3593612f30775",
+    category: "Reputation",
+    match: ["a2a reputation", "a2a-reputation"],
+    summary: "A2A Radar read A2A Reputation oracle status and routed reputation context into Core and Broadcast."
   }
 ] as const;
 

@@ -11,6 +11,9 @@ const TARGET_PARTNER_HANDLES = new Set([
   "hy4-social-app",
   "zara-market-app",
   "varastrategy",
+  "agent-pulse",
+  "infinite-bounty-v3",
+  "a2a-reputation",
   "vara-rng",
   "thebookdex",
   "zeeast-casino"
@@ -431,6 +434,63 @@ function latestVaraPulseIntegration(growth, previous) {
   return previous;
 }
 
+function latestAgentPulseIntegration(growth, previous) {
+  if (hasReceiptOrReadResult(growth.agentPulseFeed) && hasReceipt(growth.coreAgentPulseIngest) && hasReceipt(growth.broadcastAgentPulseAnnounce)) {
+    return {
+      handle: "agent-pulse",
+      programId: "0x61219b6e1a0724ac67c2e1133e6c5aaaddbfb88a0b457f93e6b94e02bdb27e6b",
+      category: "Social",
+      summary: "A2A Radar read Agent Pulse feed activity, routed social activity context into Core, and announced the integration through Broadcast.",
+      observedAt: new Date().toISOString(),
+      receipts: {
+        stats: growth.agentPulseStats,
+        feed: growth.agentPulseFeed,
+        coreIngest: growth.coreAgentPulseIngest,
+        broadcastAnnounce: growth.broadcastAgentPulseAnnounce
+      }
+    };
+  }
+  return previous;
+}
+
+function latestInfiniteBountyIntegration(growth, previous) {
+  if (hasReceiptOrReadResult(growth.infiniteBountyOpen) && hasReceipt(growth.coreInfiniteBountyIngest) && hasReceipt(growth.broadcastInfiniteBountyAnnounce)) {
+    return {
+      handle: "infinite-bounty-v3",
+      programId: "0x747d09594538498f2c64ae91f93131a47b0ce8abaa80a54e37d7a6badadc15e8",
+      category: "Bounties",
+      summary: "A2A Radar read Infinite Bounty open bounty data, routed bounty-market context into Core, and announced the integration through Broadcast.",
+      observedAt: new Date().toISOString(),
+      receipts: {
+        config: growth.infiniteBountyConfig,
+        openBounties: growth.infiniteBountyOpen,
+        coreIngest: growth.coreInfiniteBountyIngest,
+        broadcastAnnounce: growth.broadcastInfiniteBountyAnnounce
+      }
+    };
+  }
+  return previous;
+}
+
+function latestA2aReputationIntegration(growth, previous) {
+  if (hasReceiptOrReadResult(growth.a2aReputationStatus) && hasReceipt(growth.coreA2aReputationIngest) && hasReceipt(growth.broadcastA2aReputationAnnounce)) {
+    return {
+      handle: "a2a-reputation",
+      programId: "0x3c006c9daf828aa6dd237c012ea683335ffb2d455e443d7d9ab3593612f30775",
+      category: "Reputation",
+      summary: "A2A Radar read A2A Reputation oracle status, routed reputation context into Core, and announced the integration through Broadcast.",
+      observedAt: new Date().toISOString(),
+      receipts: {
+        status: growth.a2aReputationStatus,
+        leaderboard: growth.a2aReputationLeaderboard,
+        coreIngest: growth.coreA2aReputationIngest,
+        broadcastAnnounce: growth.broadcastA2aReputationAnnounce
+      }
+    };
+  }
+  return previous;
+}
+
 async function readEcosystemIndex() {
   const query = `
     query A2ARadarEcosystemIndex {
@@ -611,6 +671,18 @@ const latestVaraPulseGrowth = latestGrowthReceiptsMatching(
   growthReceipts,
   (receipts) => hasReceiptOrReadResult(receipts.varaPulseStats) && hasReceipt(receipts.coreVaraPulseIngest) && hasReceipt(receipts.broadcastVaraPulseAnnounce)
 );
+const latestAgentPulseGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceiptOrReadResult(receipts.agentPulseFeed) && hasReceipt(receipts.coreAgentPulseIngest) && hasReceipt(receipts.broadcastAgentPulseAnnounce)
+);
+const latestInfiniteBountyGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceiptOrReadResult(receipts.infiniteBountyOpen) && hasReceipt(receipts.coreInfiniteBountyIngest) && hasReceipt(receipts.broadcastInfiniteBountyAnnounce)
+);
+const latestA2aReputationGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceiptOrReadResult(receipts.a2aReputationStatus) && hasReceipt(receipts.coreA2aReputationIngest) && hasReceipt(receipts.broadcastA2aReputationAnnounce)
+);
 const varaBridge = varaBridgeReceipts.at(-1);
 const hy4Predict = hy4PredictReceipts.at(-1);
 const theBookDex = theBookDexReceipts.at(-1);
@@ -643,6 +715,18 @@ const verifiedVaraFlow = latestVaraFlowIntegration(
 const verifiedVaraPulse = latestVaraPulseIntegration(
   latestVaraPulseGrowth,
   previousVerifiedIntegration(previousSnapshot, "varapulse", "latestVaraPulseIntegration")
+);
+const verifiedAgentPulse = latestAgentPulseIntegration(
+  latestAgentPulseGrowth,
+  previousVerifiedIntegration(previousSnapshot, "agent-pulse", "latestAgentPulseIntegration")
+);
+const verifiedInfiniteBounty = latestInfiniteBountyIntegration(
+  latestInfiniteBountyGrowth,
+  previousVerifiedIntegration(previousSnapshot, "infinite-bounty-v3", "latestInfiniteBountyIntegration")
+);
+const verifiedA2aReputation = latestA2aReputationIntegration(
+  latestA2aReputationGrowth,
+  previousVerifiedIntegration(previousSnapshot, "a2a-reputation", "latestA2aReputationIntegration")
 );
 console.log("Reading Vara Agent Network indexer");
 const ecosystemIndex = await readEcosystemIndex();
@@ -693,7 +777,16 @@ const currentActivity = [
   txActivity("IntegrationPact", growth.broadcastVaraFlowAnnounce, "Growth loop: Broadcast announced VaraFlow context."),
   txActivity("OutgoingCall", growth.varaPulseStats, "Growth loop: A2A Radar read VaraPulse stats."),
   txActivity("DemandRequest", growth.coreVaraPulseIngest, "Growth loop: Core ingested a VaraPulse social signal."),
-  txActivity("IntegrationPact", growth.broadcastVaraPulseAnnounce, "Growth loop: Broadcast announced VaraPulse context.")
+  txActivity("IntegrationPact", growth.broadcastVaraPulseAnnounce, "Growth loop: Broadcast announced VaraPulse context."),
+  txActivity("OutgoingCall", growth.agentPulseFeed, "Growth loop: A2A Radar read Agent Pulse feed."),
+  txActivity("DemandRequest", growth.coreAgentPulseIngest, "Growth loop: Core ingested an Agent Pulse social signal."),
+  txActivity("IntegrationPact", growth.broadcastAgentPulseAnnounce, "Growth loop: Broadcast announced Agent Pulse context."),
+  txActivity("OutgoingCall", growth.infiniteBountyOpen, "Growth loop: A2A Radar read Infinite Bounty open bounties."),
+  txActivity("DemandRequest", growth.coreInfiniteBountyIngest, "Growth loop: Core ingested an Infinite Bounty market signal."),
+  txActivity("IntegrationPact", growth.broadcastInfiniteBountyAnnounce, "Growth loop: Broadcast announced Infinite Bounty context."),
+  txActivity("OutgoingCall", growth.a2aReputationStatus, "Growth loop: A2A Radar read A2A Reputation oracle status."),
+  txActivity("DemandRequest", growth.coreA2aReputationIngest, "Growth loop: Core ingested an A2A Reputation signal."),
+  txActivity("IntegrationPact", growth.broadcastA2aReputationAnnounce, "Growth loop: Broadcast announced A2A Reputation context.")
 ].filter(Boolean);
 const activity = mergeByKey(currentActivity, previousSnapshot.activity, (item) => `${item.kind}:${item.source}`);
 
@@ -750,7 +843,10 @@ const externalIntegrations = mergeByKey(
     verifiedTheBookDex,
     verifiedVaraStrategy,
     verifiedVaraFlow,
-    verifiedVaraPulse
+    verifiedVaraPulse,
+    verifiedAgentPulse,
+    verifiedInfiniteBounty,
+    verifiedA2aReputation
   ].filter(Boolean),
   previousSnapshot.externalIntegrations,
   (item) => item.handle
@@ -816,7 +912,19 @@ const snapshot = {
       growth.varaPulseStats,
       growth.varaPulseLatest,
       growth.coreVaraPulseIngest,
-      growth.broadcastVaraPulseAnnounce
+      growth.broadcastVaraPulseAnnounce,
+      growth.agentPulseStats,
+      growth.agentPulseFeed,
+      growth.coreAgentPulseIngest,
+      growth.broadcastAgentPulseAnnounce,
+      growth.infiniteBountyConfig,
+      growth.infiniteBountyOpen,
+      growth.coreInfiniteBountyIngest,
+      growth.broadcastInfiniteBountyAnnounce,
+      growth.a2aReputationStatus,
+      growth.a2aReputationLeaderboard,
+      growth.coreA2aReputationIngest,
+      growth.broadcastA2aReputationAnnounce
     ]), Number(previousSnapshot.counts?.outgoingIntegrations ?? 0), externalIntegrations.length),
     incomingCallTargets: Number(counts?.[0] ?? 0)
   },
@@ -847,7 +955,10 @@ const snapshot = {
     verifiedTheBookDex ? { from: "Core", to: "Broadcast", purpose: "thebookdex_market_depth_context", observedAtMs: Date.now() } : undefined,
     verifiedVaraStrategy ? { from: "Core", to: "Broadcast", purpose: "varastrategy_market_signal_context", observedAtMs: Date.now() } : undefined,
     verifiedVaraFlow ? { from: "Core", to: "Broadcast", purpose: "varaflow_workflow_context", observedAtMs: Date.now() } : undefined,
-    verifiedVaraPulse ? { from: "Core", to: "Broadcast", purpose: "varapulse_social_context", observedAtMs: Date.now() } : undefined
+    verifiedVaraPulse ? { from: "Core", to: "Broadcast", purpose: "varapulse_social_context", observedAtMs: Date.now() } : undefined,
+    verifiedAgentPulse ? { from: "Core", to: "Broadcast", purpose: "agent_pulse_feed_context", observedAtMs: Date.now() } : undefined,
+    verifiedInfiniteBounty ? { from: "Core", to: "Broadcast", purpose: "infinite_bounty_market_context", observedAtMs: Date.now() } : undefined,
+    verifiedA2aReputation ? { from: "Core", to: "Broadcast", purpose: "a2a_reputation_oracle_context", observedAtMs: Date.now() } : undefined
   ].filter(Boolean),
   externalIntegrations,
   raw: {
@@ -862,6 +973,9 @@ const snapshot = {
     latestVaraStrategyIntegration: verifiedVaraStrategy,
     latestVaraFlowIntegration: verifiedVaraFlow,
     latestVaraPulseIntegration: verifiedVaraPulse,
+    latestAgentPulseIntegration: verifiedAgentPulse,
+    latestInfiniteBountyIntegration: verifiedInfiniteBounty,
+    latestA2aReputationIntegration: verifiedA2aReputation,
     treasuryBackedCycles,
     treasuryBackedEconomicInteractions
   }

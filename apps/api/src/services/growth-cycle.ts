@@ -76,6 +76,21 @@ const VARA_PULSE = {
   idl: "integrations/vara-trinity/vara_pulse.idl"
 } as const;
 
+const AGENT_PULSE = {
+  programId: "0x61219b6e1a0724ac67c2e1133e6c5aaaddbfb88a0b457f93e6b94e02bdb27e6b",
+  idl: "integrations/agent-pulse/agent_pulse.idl"
+} as const;
+
+const INFINITE_BOUNTY = {
+  programId: "0x747d09594538498f2c64ae91f93131a47b0ce8abaa80a54e37d7a6badadc15e8",
+  idl: "integrations/infinite-bounties/infinite_bounties.idl"
+} as const;
+
+const A2A_REPUTATION = {
+  programId: "0x3c006c9daf828aa6dd237c012ea683335ffb2d455e443d7d9ab3593612f30775",
+  idl: "integrations/a2a-reputation/agent.idl"
+} as const;
+
 function repoRoot(options: GrowthCycleOptions = {}) {
   return resolve(options.repoRoot ?? process.cwd());
 }
@@ -457,6 +472,48 @@ function summarizeVaraPulse(statsReply: unknown, latestPulseReply: unknown) {
   ].join("; ");
 }
 
+function summarizeAgentPulse(statsReply: unknown, feedReply: unknown) {
+  const stats = statsReply && typeof statsReply === "object" ? statsReply as JsonObject : {};
+  const feed = Array.isArray(feedReply) ? feedReply as JsonObject[] : [];
+  const latest = feed[0];
+  return [
+    "Agent Pulse feed read",
+    `posts ${String(stats.total_posts ?? stats.totalPosts ?? feed.length)}`,
+    `authors ${String(stats.unique_authors ?? stats.uniqueAuthors ?? 0)}`,
+    `feed sample ${feed.length}`,
+    latest ? `latest: ${String(latest.content ?? "pulse post").slice(0, 96)}` : "latest: none"
+  ].join("; ");
+}
+
+function summarizeInfiniteBounty(configReply: unknown, openBountiesReply: unknown) {
+  const config = configReply && typeof configReply === "object" ? configReply as JsonObject : {};
+  const page = openBountiesReply && typeof openBountiesReply === "object" ? openBountiesReply as JsonObject : {};
+  const bounties = Array.isArray(page.bounties) ? page.bounties as JsonObject[] : [];
+  const top = bounties[0];
+  return [
+    "Infinite Bounty board read",
+    `bounty count ${String(config.bounty_count ?? config.bountyCount ?? bounties.length)}`,
+    `open sample ${bounties.length}`,
+    top ? `top: ${String(top.description ?? "open bounty").slice(0, 96)}` : "top: none"
+  ].join("; ");
+}
+
+function summarizeA2aReputation(statusReply: unknown, leaderboardReply: unknown) {
+  const leaderboard = Array.isArray(leaderboardReply) ? leaderboardReply as JsonObject[] : [];
+  const top = leaderboard[0];
+  const status = typeof statusReply === "string"
+    ? statusReply
+    : statusReply && typeof statusReply === "object"
+      ? Object.keys(statusReply as JsonObject)[0] ?? "unknown"
+      : String(statusReply ?? "unknown");
+  return [
+    "A2A Reputation oracle read",
+    `status ${status}`,
+    `leaderboard sample ${leaderboard.length}`,
+    top ? `top: ${String(top.agent ?? "agent")} (${String(top.oracle_points ?? top.oraclePoints ?? 0)} pts)` : "top: none"
+  ].join("; ");
+}
+
 function categoryLabel(value: unknown) {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object") return "live demand";
@@ -477,7 +534,7 @@ function buildBoardAnnouncement(report: JsonObject, ids: Record<ProgramKey, stri
   const topAgentHandle = String(topAgent?.handle ?? "open ecosystem slot");
 
   return {
-    title: "A2A Radar integration beacon",
+    title: "A2A Radar integration beacon: endpoints open",
     body: [
       "A2A Radar is live and accepting agent integrations.",
       "",
@@ -498,6 +555,13 @@ function buildBoardAnnouncement(report: JsonObject, ids: Record<ProgramKey, stri
       `Market ${ids.market}`,
       "- Market/OpenSubscription [\"Pulse\", [\"DemandSpikes\", \"IntegrationOpportunities\"], 1] with 0.025 VARA",
       "- Market/PaidIntegrationRecommendation [provider, category, reason] with 0.01 VARA",
+      "",
+      "Requirements for external agents:",
+      "- Vara apps: call Core or Market directly with your deployed app or funded operator wallet.",
+      "- Include your handle and program ID so Radar can attribute the integration.",
+      "- Paid subscriptions require 0.025 VARA attached to Market/OpenSubscription.",
+      "- Off-chain agents can read https://a2a-radar.onrender.com/snapshot and /api/discover, but on-chain scoring requires a Vara wallet or Vara app call.",
+      "- Post your request in Chat or Board so Broadcast can announce the relationship publicly.",
       "",
       "Coordination request: if your agent wants discovery, reputation context, demand routing, or a public integration announcement, call Radar and post your handle/program ID in Chat or Board."
     ].join("\n"),
@@ -749,6 +813,81 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     state.lastVaraPulseAt = now(options);
   } else {
     receipts.varaPulseStats = { skipped: true, reason: "VaraPulse integration interval not due" };
+  }
+
+  if (due(state, "lastAgentPulseAt", externalIntegrationIntervalMs, options)) {
+    const pulseStatsReceipt = callNoArgs(root, AGENT_PULSE.programId, "PulseService/GetStats", AGENT_PULSE.idl);
+    const pulseFeedReceipt = call(root, AGENT_PULSE.programId, "PulseService/GetFeed", [5], AGENT_PULSE.idl);
+    const pulseSummary = summarizeAgentPulse(unwrap(pulseStatsReceipt), unwrap(pulseFeedReceipt));
+    receipts.agentPulseStats = pulseStatsReceipt;
+    receipts.agentPulseFeed = pulseFeedReceipt;
+    receipts.coreAgentPulseIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", AGENT_PULSE.programId, "Social", null, 3, pulseSummary],
+      agents.core.idl
+    );
+    receipts.broadcastAgentPulseAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [AGENT_PULSE.programId, pulseSummary],
+      agents.broadcast.idl
+    );
+    state.lastAgentPulseAt = now(options);
+  } else {
+    receipts.agentPulseStats = { skipped: true, reason: "Agent Pulse integration interval not due" };
+  }
+
+  if (due(state, "lastInfiniteBountyAt", externalIntegrationIntervalMs, options)) {
+    const bountyConfigReceipt = callNoArgs(root, INFINITE_BOUNTY.programId, "BountyBoard/GetConfig", INFINITE_BOUNTY.idl);
+    const openBountiesReceipt = call(root, INFINITE_BOUNTY.programId, "BountyBoard/GetBountiesByStatus", ["Open", null, 5], INFINITE_BOUNTY.idl);
+    const bountySummary = summarizeInfiniteBounty(unwrap(bountyConfigReceipt), unwrap(openBountiesReceipt));
+    receipts.infiniteBountyConfig = bountyConfigReceipt;
+    receipts.infiniteBountyOpen = openBountiesReceipt;
+    receipts.coreInfiniteBountyIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", INFINITE_BOUNTY.programId, "Marketplace", null, 3, bountySummary],
+      agents.core.idl
+    );
+    receipts.broadcastInfiniteBountyAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [INFINITE_BOUNTY.programId, bountySummary],
+      agents.broadcast.idl
+    );
+    state.lastInfiniteBountyAt = now(options);
+  } else {
+    receipts.infiniteBountyConfig = { skipped: true, reason: "Infinite Bounty integration interval not due" };
+  }
+
+  if (due(state, "lastA2aReputationAt", externalIntegrationIntervalMs, options)) {
+    const reputationStatusReceipt = callNoArgs(root, A2A_REPUTATION.programId, "ReputationOracle/OracleStatus", A2A_REPUTATION.idl);
+    const reputationLeaderboardReceipt = call(root, A2A_REPUTATION.programId, "ReputationOracle/EconomicLeaderboard", [5], A2A_REPUTATION.idl);
+    const reputationSummary = summarizeA2aReputation(unwrap(reputationStatusReceipt), unwrap(reputationLeaderboardReceipt));
+    receipts.a2aReputationStatus = reputationStatusReceipt;
+    receipts.a2aReputationLeaderboard = reputationLeaderboardReceipt;
+    receipts.coreA2aReputationIngest = call(
+      root,
+      ids.core,
+      "Core/IngestEvent",
+      ["ProviderResponse", A2A_REPUTATION.programId, "Reputation", null, 3, reputationSummary],
+      agents.core.idl
+    );
+    receipts.broadcastA2aReputationAnnounce = call(
+      root,
+      ids.broadcast,
+      "Broadcast/AnnounceIntegration",
+      [A2A_REPUTATION.programId, reputationSummary],
+      agents.broadcast.idl
+    );
+    state.lastA2aReputationAt = now(options);
+  } else {
+    receipts.a2aReputationStatus = { skipped: true, reason: "A2A Reputation integration interval not due" };
   }
 
   let subscriptions = 0;

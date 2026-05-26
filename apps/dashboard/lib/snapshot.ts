@@ -15,6 +15,9 @@ export interface RadarSnapshotRaw {
 	latestVaraStrategyIntegration?: ExternalIntegration;
 	latestVaraFlowIntegration?: ExternalIntegration;
 	latestVaraPulseIntegration?: ExternalIntegration;
+	latestAgentPulseIntegration?: ExternalIntegration;
+	latestInfiniteBountyIntegration?: ExternalIntegration;
+	latestA2aReputationIntegration?: ExternalIntegration;
 	treasuryBackedCycles?: number;
 	treasuryBackedEconomicInteractions?: number;
 }

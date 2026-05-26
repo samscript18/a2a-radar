@@ -1,0 +1,38 @@
+type BountyPage = struct {
+  bounties: vec Bounty,
+};
+
+type Bounty = struct {
+  id: u64,
+  creator: actor_id,
+  description: str,
+  metadata_url: str,
+  reward: u128,
+  status: BountyStatus,
+  claimant: opt actor_id,
+  proof_url: opt str,
+  created_at: u64,
+};
+
+type BountyStatus = enum {
+  Open,
+  Claimed,
+  Submitted,
+  Approved,
+  Cancelled,
+};
+
+type Config = struct {
+  admin: actor_id,
+  fee: u128,
+  bounty_count: u64,
+};
+
+constructor {
+  New : (admin: actor_id, fee: u128);
+};
+
+service BountyBoard {
+  query GetBountiesByStatus : (status: BountyStatus, cursor: opt u64, limit: u32) -> BountyPage;
+  query GetConfig : () -> Config;
+};

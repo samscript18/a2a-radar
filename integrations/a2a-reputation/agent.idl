@@ -1,0 +1,25 @@
+type OracleStatus = enum {
+  Active,
+  ReadOnly,
+};
+
+type EconomicProfile = struct {
+  agent: str,
+  oracle_points: i32,
+  total_value_staked: u128,
+  total_value_rewarded: u128,
+  total_value_slashed: u128,
+  virtual_stake: u32,
+  useful_signals: u32,
+  spam_signals: u32,
+  last_verdict: str,
+};
+
+constructor {
+  Create : ();
+};
+
+service ReputationOracle {
+  query OracleStatus : () -> OracleStatus;
+  query EconomicLeaderboard : (limit: u32) -> vec EconomicProfile;
+};
