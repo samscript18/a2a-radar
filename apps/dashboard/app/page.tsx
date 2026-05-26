@@ -108,6 +108,7 @@ export default function Home() {
   const economicInteractions = economicInteractionsFor(snapshot);
   const latestSubscriptions = latestSubscriptionsFor(snapshot);
   const externalIntegrations = externalIntegrationsFor(snapshot);
+  const receipts = receiptsFor(snapshot);
   const hasIndexedData = snapshot.generatedAt !== "" || snapshot.counts.signals > 0 || economicInteractions.length > 0;
   const boardAnnouncementId = latestBoardAnnouncementId(snapshot) ?? receipt.boardAnnouncementId;
   const treasuryRaw = snapshot.raw?.marketTreasuryRaw ?? totalEconomicRaw(economicInteractions);
@@ -122,7 +123,7 @@ export default function Home() {
   const treasuryBackedPayments = snapshot.raw?.treasuryBackedEconomicInteractions ?? treasuryBackedSubscriptions * 2;
   const subscriptionCount = Math.max(snapshot.counts.subscriptions, latestSubscriptions.length, treasuryBackedSubscriptions);
   const economicInteractionCount = Math.max(snapshot.economicInteractionCount ?? 0, snapshot.economicInteractions.length, economicInteractions.length, treasuryBackedPayments);
-  const outgoingIntegrationCount = Math.max(snapshot.counts.outgoingIntegrations, externalIntegrations.length);
+  const outgoingIntegrationCount = Math.max(snapshot.counts.outgoingIntegrations, externalIntegrations.length, outgoingIntegrationReceiptCount(receipts));
 
   const agentCards: AgentCardModel[] = [
     {
@@ -600,6 +601,37 @@ function hasReceiptOrReadResult(receipt: { messageId?: string; txHash?: string; 
   return hasReceipt(receipt) || hasReadResult(receipt);
 }
 
+function outgoingIntegrationReceiptCount(receipts: ReceiptRecord): number {
+  return [
+    receipts.varaBridgeQuery,
+    receipts.coreVaraBridgeIngest,
+    receipts.broadcastVaraBridgeAnnounce,
+    receipts.hy4PredictCurrentBlock,
+    receipts.hy4PredictFastMarket,
+    receipts.hy4PredictMarketCreated,
+    receipts.coreHy4PredictIngest,
+    receipts.broadcastHy4PredictAnnounce,
+    receipts.theBookDexSignalCollab,
+    receipts.theBookDexStatus,
+    receipts.theBookDexOrderbook,
+    receipts.theBookDexPools,
+    receipts.coreTheBookDexIngest,
+    receipts.broadcastTheBookDexAnnounce,
+    receipts.varaStrategyStats,
+    receipts.varaStrategyRecommendations,
+    receipts.coreVaraStrategyIngest,
+    receipts.broadcastVaraStrategyAnnounce,
+    receipts.varaFlowStats,
+    receipts.varaFlowWorkflows,
+    receipts.coreVaraFlowIngest,
+    receipts.broadcastVaraFlowAnnounce,
+    receipts.varaPulseStats,
+    receipts.varaPulseLatest,
+    receipts.coreVaraPulseIngest,
+    receipts.broadcastVaraPulseAnnounce
+  ].filter(hasReceiptOrReadResult).length;
+}
+
 function observedAtFromSnapshot(snapshot: DashboardSnapshot): number {
   const indexedAt = Date.parse(snapshot.generatedAt);
   return Number.isNaN(indexedAt) ? Date.now() : indexedAt;
@@ -639,7 +671,20 @@ function latestSubscriptionsFor(snapshot: DashboardSnapshot): Subscription[] {
 
   const receipt = receiptsFor(snapshot).marketSubscription;
   if (!hasReceipt(receipt)) {
-    return [];
+    const cycles = snapshot.raw?.treasuryBackedCycles ?? treasuryBackedCycleCount(snapshot.raw?.marketTreasuryRaw ?? "0");
+    if (cycles <= 0) {
+      return [];
+    }
+
+    return [
+      {
+        id: `treasury-backed-subscriptions-${cycles}`,
+        tier: "Pulse",
+        amount: { amount: String(BigInt(cycles) * PULSE_SUBSCRIPTION_RAW), asset: "VARA" },
+        observedAtMs: observedAtFromSnapshot(snapshot),
+        source: "market-treasury"
+      }
+    ];
   }
 
   return [
@@ -764,8 +809,75 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
   return uniqueIntegrations([
     ...directIntegrations,
     ...rawIntegrations,
-    ...derivedIntegrations.filter((item): item is ExternalIntegration => Boolean(item))
+    ...derivedIntegrations.filter((item): item is ExternalIntegration => Boolean(item)),
+    ...activityDerivedIntegrations(snapshot)
   ]);
+}
+
+const KNOWN_EXTERNAL_INTEGRATIONS = [
+  {
+    handle: "varabridge",
+    programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
+    category: "Oracle",
+    match: ["varabridge", "oracle"],
+    summary: "A2A Radar queried VaraBridge oracle data and routed the signal into Core and Broadcast."
+  },
+  {
+    handle: "hy4-predict-app",
+    programId: "0xd24f2886dcb29dec16fc53214b7c8e498b2e96ea55d31a1497571e1ae15f5271",
+    category: "Prediction",
+    match: ["hy4-predict", "fastmarket"],
+    summary: "A2A Radar read hy4-predict market data and routed prediction context into Core and Broadcast."
+  },
+  {
+    handle: "thebookdex",
+    programId: "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",
+    category: "DEX",
+    match: ["thebookdex"],
+    summary: "A2A Radar read thebookdex market state and routed DEX context into Core and Broadcast."
+  },
+  {
+    handle: "varastrategy",
+    programId: "0xe6483fe2fc8fea2dc3e2ee848e0372b9b486e023bb4cb21247a914e8f074aaa7",
+    category: "Strategy",
+    match: ["varastrategy"],
+    summary: "A2A Radar read VaraStrategy recommendations and routed strategy context into Core and Broadcast."
+  },
+  {
+    handle: "varaflow-org",
+    programId: "0x19d4b1778cfdf64c732e10640ccff923c4137a7fbed4f1a291e241d3e6361175",
+    category: "Workflow",
+    match: ["varaflow"],
+    summary: "A2A Radar read VaraFlow workflow stats and routed automation context into Core and Broadcast."
+  },
+  {
+    handle: "varapulse",
+    programId: "0x51321d7e10b5fa064b6cad675216634336ca2de0e27d0940d184f1548d55f53d",
+    category: "Social",
+    match: ["varapulse"],
+    summary: "A2A Radar read VaraPulse social pulse stats and routed ecosystem heartbeat context into Core and Broadcast."
+  }
+] as const;
+
+function activityDerivedIntegrations(snapshot: DashboardSnapshot): ExternalIntegration[] {
+  const activityText = [
+    ...(snapshot.activity ?? []).map((item) => item.metadata),
+    ...(snapshot.growthTimeline ?? []).map((item) => item.title),
+    ...(snapshot.boardEvents ?? []).map((item) => `${item.title} ${item.body}`)
+  ].join("\n").toLowerCase();
+
+  if (!activityText) return [];
+  const observedAt = snapshot.generatedAt || new Date(observedAtFromSnapshot(snapshot)).toISOString();
+  return KNOWN_EXTERNAL_INTEGRATIONS
+    .filter((integration) => integration.match.some((term) => activityText.includes(term)))
+    .map((integration) => ({
+      handle: integration.handle,
+      programId: integration.programId,
+      category: integration.category,
+      summary: integration.summary,
+      observedAt,
+      receipts: { source: "indexed-activity" }
+    }));
 }
 
 function uniqueIntegrations(integrations: ExternalIntegration[]): ExternalIntegration[] {

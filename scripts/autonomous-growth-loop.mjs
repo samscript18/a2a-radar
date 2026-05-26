@@ -9,13 +9,27 @@ async function sleep(ms) {
 }
 
 do {
-  const result = await runGrowthCycle({ force });
-  console.log(JSON.stringify(result, null, 2));
-  if (once) break;
+  try {
+    const result = await runGrowthCycle({ force });
+    console.log(JSON.stringify(result, null, 2));
+    if (once) {
+      process.exitCode = 0;
+      break;
+    }
 
-  const delayMs = result.skipped
-    ? Math.max(1_000, result.nextCycleDueInSeconds * 1_000)
-    : loopDelayMs;
-  console.log(`Sleeping ${Math.ceil(delayMs / 1000)}s before next growth cycle.`);
-  await sleep(delayMs);
+    const delayMs = result.skipped
+      ? Math.max(1_000, result.nextCycleDueInSeconds * 1_000)
+      : loopDelayMs;
+    console.log(`Sleeping ${Math.ceil(delayMs / 1000)}s before next growth cycle.`);
+    await sleep(delayMs);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+    if (once) break;
+    await sleep(Math.max(1_000, loopDelayMs));
+  }
 } while (true);
+
+if (once) {
+  process.exit(process.exitCode ?? 0);
+}

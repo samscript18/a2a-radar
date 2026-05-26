@@ -216,18 +216,41 @@ function parseJsonOutput(output: string) {
   }
 }
 
+function sleepSync(ms: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function isTxPoolPriorityError(message: string) {
+  return /Priority is too low|too low priority to replace another transaction/i.test(message);
+}
+
 function runJson(root: string, args: string[]) {
-  const result = spawnSync("vara-wallet", ["--json", ...args], {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    env: process.env
-  });
-  if (result.status !== 0) {
+  const maxAttempts = Number(process.env.VARA_WALLET_TX_RETRIES ?? 4);
+  const baseDelayMs = Number(process.env.VARA_WALLET_TX_RETRY_DELAY_MS ?? 4_000);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = spawnSync("vara-wallet", ["--json", ...args], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env
+    });
+    if (result.status === 0) {
+      return parseJsonOutput(result.stdout ?? "");
+    }
+
     const details = `${result.stderr ?? ""}${result.stdout ?? ""}`.trim();
+    if (attempt < maxAttempts && isTxPoolPriorityError(details)) {
+      const delayMs = baseDelayMs * attempt;
+      console.warn(`vara-wallet tx pool priority conflict; retrying in ${delayMs}ms (${attempt}/${maxAttempts})`);
+      sleepSync(delayMs);
+      continue;
+    }
+
     throw new Error(`vara-wallet ${args.join(" ")} failed${details ? `: ${details}` : ""}`);
   }
-  return parseJsonOutput(result.stdout ?? "");
+
+  throw new Error(`vara-wallet ${args.join(" ")} failed`);
 }
 
 function isVoucherExpiredError(error: unknown) {
