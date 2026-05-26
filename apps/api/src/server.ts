@@ -15,10 +15,18 @@ const snapshotPath = process.env.RADAR_SNAPSHOT
 const growthReceiptsPath = process.env.RADAR_GROWTH_RECEIPTS
   ? resolve(process.env.RADAR_GROWTH_RECEIPTS)
   : resolve(repoRoot, "artifacts/deploy/growth-loop-receipts.json");
+const serverCronIntervalMs = intervalMs("SERVER_GROWTH_CRON_INTERVAL_MS", 15 * 60 * 1000);
+const serverCronEnabled = process.env.SERVER_GROWTH_CRON_ENABLED !== "0";
+let serverCronRunning = false;
 
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
   response.end(JSON.stringify(body));
+}
+
+function intervalMs(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 async function readSnapshot() {
@@ -88,6 +96,47 @@ function runIndexChain() {
     ok: true,
     stdout: result.stdout?.trim() ?? ""
   };
+}
+
+export async function runGrowthCycleAndRefreshIndex(source = "server-cron") {
+  const growth = await runGrowthCycle({ repoRoot });
+  if (growth.skipped) {
+    console.log(`[${source}] growth cycle skipped; next due in ${growth.nextCycleDueInSeconds}s`);
+    return { ...growth, indexed: false };
+  }
+
+  const index = runIndexChain();
+  console.log(`[${source}] growth cycle executed; indexed dashboard snapshot`);
+  return { ...growth, indexed: true, index };
+}
+
+async function runServerCronTick() {
+  if (serverCronRunning) {
+    console.log("[server-cron] previous growth cycle still running; skipping tick");
+    return;
+  }
+
+  serverCronRunning = true;
+  try {
+    await runGrowthCycleAndRefreshIndex();
+  } catch (error) {
+    console.error("[server-cron] growth cycle failed", error instanceof Error ? error.message : error);
+  } finally {
+    serverCronRunning = false;
+  }
+}
+
+function startServerCron() {
+  if (!serverCronEnabled) {
+    console.log("A2A Radar server cron disabled by SERVER_GROWTH_CRON_ENABLED=0");
+    return;
+  }
+
+  console.log(`A2A Radar server cron enabled: every ${Math.round(serverCronIntervalMs / 1000)}s`);
+  const timer = setInterval(() => {
+    void runServerCronTick();
+  }, serverCronIntervalMs);
+  timer.unref?.();
 }
 
 function discoverPayload(snapshot: Record<string, unknown>) {
@@ -236,5 +285,6 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
 if (process.env.NODE_ENV !== "test") {
   createServer(handleRequest).listen(port, host, () => {
     console.log(`A2A Radar API listening on http://${host}:${port}`);
+    startServerCron();
   });
 }
