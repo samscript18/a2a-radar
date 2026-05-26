@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
+concurrency:
+  group: a2a-radar-growth-cycle
+  cancel-in-progress: true
+
 
 jobs:
   trigger-growth-cycle:
