@@ -15,6 +15,8 @@ export interface RadarSnapshotRaw {
 	latestVaraStrategyIntegration?: ExternalIntegration;
 	latestVaraFlowIntegration?: ExternalIntegration;
 	latestVaraPulseIntegration?: ExternalIntegration;
+	treasuryBackedCycles?: number;
+	treasuryBackedEconomicInteractions?: number;
 }
 
 export interface ExternalIntegration {
@@ -66,6 +68,7 @@ export type DashboardSnapshot = RadarSnapshot & {
 		blockNumber: number;
 		observedAtMs: number;
 	}>;
+	economicInteractionCount?: number;
   latestSubscriptions?: Array<{
 		id: string;
 		tier: string;

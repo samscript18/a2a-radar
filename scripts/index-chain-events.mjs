@@ -2,6 +2,9 @@ import { agents, readJson, requireProgramIds, runJson, writeJson } from "./lib/c
 
 const ids = requireProgramIds();
 const INDEXER_GRAPHQL_URL = process.env.INDEXER_GRAPHQL_URL ?? "https://agents-api.vara.network/graphql";
+const PAID_RECOMMENDATION_RAW = 10_000_000_000n;
+const PULSE_SUBSCRIPTION_RAW = 25_000_000_000n;
+const ECONOMIC_CYCLE_RAW = PAID_RECOMMENDATION_RAW + PULSE_SUBSCRIPTION_RAW;
 const TARGET_PARTNER_HANDLES = new Set([
   "varabridge",
   "hy4-predict-app",
@@ -171,6 +174,11 @@ function hasReadResult(receipt) {
 
 function hasReceiptOrReadResult(receipt) {
   return hasReceipt(receipt) || hasReadResult(receipt);
+}
+
+function treasuryBackedCycleCount(treasuryRaw) {
+  if (treasuryRaw <= 0n) return 0;
+  return Number(treasuryRaw / ECONOMIC_CYCLE_RAW);
 }
 
 function uniqueBy(items, keyFor) {
@@ -565,6 +573,8 @@ const treasury = BigInt(unwrap(runJson("vara-wallet", [
   "--idl",
   agents.market.idl
 ])) ?? "0");
+const treasuryBackedCycles = treasuryBackedCycleCount(treasury);
+const treasuryBackedEconomicInteractions = treasuryBackedCycles * 2;
 
 const smoke = readJson("artifacts/deploy/live-smoke-results.json", {});
 const previousSnapshot = readJson("artifacts/latest-snapshot.json", {});
@@ -748,6 +758,7 @@ const snapshot = {
     registeredAgents: 3,
     signals: Number(counts?.[1] ?? 0),
     subscriptions: Math.max(
+      treasuryBackedCycles,
       [smoke.subscription, growth.marketSubscription].filter((row) => row?.messageId).length,
       latestSubscriptions.length,
       Number(previousSnapshot.counts?.subscriptions ?? 0)
@@ -816,6 +827,11 @@ const snapshot = {
   growthTimeline,
   activity,
   economicInteractions,
+  economicInteractionCount: Math.max(
+    treasuryBackedEconomicInteractions,
+    economicInteractions.length,
+    Number(previousSnapshot.economicInteractionCount ?? 0)
+  ),
   crossAgentCalls: [
     { from: "Core", to: "Broadcast", purpose: "report_for_broadcast", observedAtMs: Date.now() },
     { from: "Core", to: "Market", purpose: "premium_signals_for_market", observedAtMs: Date.now() },
@@ -841,7 +857,9 @@ const snapshot = {
     latestTheBookDexIntegration: verifiedTheBookDex,
     latestVaraStrategyIntegration: verifiedVaraStrategy,
     latestVaraFlowIntegration: verifiedVaraFlow,
-    latestVaraPulseIntegration: verifiedVaraPulse
+    latestVaraPulseIntegration: verifiedVaraPulse,
+    treasuryBackedCycles,
+    treasuryBackedEconomicInteractions
   }
 };
 

@@ -36,6 +36,10 @@ const CANONICAL_IDS = {
   market: "0xb9601e1bffa349bae1f1eb94b71caaee832caf3f8145e0eabb26d288d80ae176"
 };
 
+const PAID_RECOMMENDATION_RAW = 10_000_000_000n;
+const PULSE_SUBSCRIPTION_RAW = 25_000_000_000n;
+const ECONOMIC_CYCLE_RAW = PAID_RECOMMENDATION_RAW + PULSE_SUBSCRIPTION_RAW;
+
 const FLOW = [
   "Core generates intelligence",
   "Broadcast publishes trends",
@@ -114,8 +118,10 @@ export default function Home() {
   const growthTimeline = snapshot.growthTimeline ?? [];
   const ecosystemInteractions = snapshot.ecosystemInteractions ?? [];
   const boardActivityCount = broadcastActivityCount(snapshot, boardEvents);
-  const subscriptionCount = Math.max(snapshot.counts.subscriptions, latestSubscriptions.length);
-  const economicInteractionCount = Math.max(snapshot.economicInteractions.length, economicInteractions.length);
+  const treasuryBackedSubscriptions = snapshot.raw?.treasuryBackedCycles ?? treasuryBackedCycleCount(treasuryRaw);
+  const treasuryBackedPayments = snapshot.raw?.treasuryBackedEconomicInteractions ?? treasuryBackedSubscriptions * 2;
+  const subscriptionCount = Math.max(snapshot.counts.subscriptions, latestSubscriptions.length, treasuryBackedSubscriptions);
+  const economicInteractionCount = Math.max(snapshot.economicInteractionCount ?? 0, snapshot.economicInteractions.length, economicInteractions.length, treasuryBackedPayments);
   const outgoingIntegrationCount = Math.max(snapshot.counts.outgoingIntegrations, externalIntegrations.length);
 
   const agentCards: AgentCardModel[] = [
@@ -566,6 +572,16 @@ function totalEconomicRaw(economicInteractions: EconomicInteraction[]): string {
   return economicInteractions
     .reduce((sum, item) => sum + BigInt(item.amount.amount), 0n)
     .toString();
+}
+
+function treasuryBackedCycleCount(treasuryRaw: string): number {
+  try {
+    const treasury = BigInt(treasuryRaw || "0");
+    if (treasury <= 0n) return 0;
+    return Number(treasury / ECONOMIC_CYCLE_RAW);
+  } catch {
+    return 0;
+  }
 }
 
 function receiptsFor(snapshot: DashboardSnapshot): ReceiptRecord {
