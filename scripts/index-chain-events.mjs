@@ -176,6 +176,10 @@ function hasReceiptOrReadResult(receipt) {
   return hasReceipt(receipt) || hasReadResult(receipt);
 }
 
+function countReceiptLike(rows) {
+  return rows.filter((row) => hasReceiptOrReadResult(row)).length;
+}
+
 function treasuryBackedCycleCount(treasuryRaw) {
   if (treasuryRaw <= 0n) return 0;
   return Number(treasuryRaw / ECONOMIC_CYCLE_RAW);
@@ -240,7 +244,7 @@ function latestVaraBridgeIntegration(growth, varaBridge) {
     };
   }
 
-  if (hasReceipt(growth.varaBridgeQuery) && hasReceipt(growth.coreVaraBridgeIngest) && hasReceipt(growth.broadcastVaraBridgeAnnounce)) {
+  if (hasReceiptOrReadResult(growth.varaBridgeQuery) && hasReceipt(growth.coreVaraBridgeIngest) && hasReceipt(growth.broadcastVaraBridgeAnnounce)) {
     return {
       handle: "varabridge",
       programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
@@ -349,7 +353,7 @@ function latestTheBookDexIntegration(growth, theBookDex) {
     };
   }
 
-  if (hasReceipt(growth.theBookDexSignalCollab) && hasReceipt(growth.coreTheBookDexIngest) && hasReceipt(growth.broadcastTheBookDexAnnounce)) {
+  if (hasReceiptOrReadResult(growth.theBookDexStatus) && hasReceipt(growth.coreTheBookDexIngest) && hasReceipt(growth.broadcastTheBookDexAnnounce)) {
     return {
       handle: "thebookdex",
       programId: "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",
@@ -585,7 +589,7 @@ const theBookDexReceipts = readJson("artifacts/deploy/thebookdex-integration-rec
 const growth = growthReceipts.at(-1)?.receipts ?? {};
 const latestVaraBridgeGrowth = latestGrowthReceiptsMatching(
   growthReceipts,
-  (receipts) => hasReceipt(receipts.varaBridgeQuery) && hasReceipt(receipts.coreVaraBridgeIngest) && hasReceipt(receipts.broadcastVaraBridgeAnnounce)
+  (receipts) => hasReceiptOrReadResult(receipts.varaBridgeQuery) && hasReceipt(receipts.coreVaraBridgeIngest) && hasReceipt(receipts.broadcastVaraBridgeAnnounce)
 );
 const latestHy4PredictGrowth = latestGrowthReceiptsMatching(
   growthReceipts,
@@ -593,7 +597,7 @@ const latestHy4PredictGrowth = latestGrowthReceiptsMatching(
 );
 const latestTheBookDexGrowth = latestGrowthReceiptsMatching(
   growthReceipts,
-  (receipts) => hasReceipt(receipts.theBookDexSignalCollab) && hasReceipt(receipts.coreTheBookDexIngest) && hasReceipt(receipts.broadcastTheBookDexAnnounce)
+  (receipts) => hasReceiptOrReadResult(receipts.theBookDexStatus) && hasReceipt(receipts.coreTheBookDexIngest) && hasReceipt(receipts.broadcastTheBookDexAnnounce)
 );
 const latestVaraStrategyGrowth = latestGrowthReceiptsMatching(
   growthReceipts,
@@ -764,7 +768,7 @@ const snapshot = {
       Number(previousSnapshot.counts?.subscriptions ?? 0)
     ),
     referrals: Math.max(smoke.referral?.messageId ? 1 : 0, Number(previousSnapshot.counts?.referrals ?? 0)),
-    outgoingIntegrations: Math.max([
+    outgoingIntegrations: Math.max(countReceiptLike([
       smoke.report,
       smoke.premium,
       smoke.broadcast,
@@ -813,7 +817,7 @@ const snapshot = {
       growth.varaPulseLatest,
       growth.coreVaraPulseIngest,
       growth.broadcastVaraPulseAnnounce
-    ].filter((row) => row?.messageId).length, Number(previousSnapshot.counts?.outgoingIntegrations ?? 0), externalIntegrations.length),
+    ]), Number(previousSnapshot.counts?.outgoingIntegrations ?? 0), externalIntegrations.length),
     incomingCallTargets: Number(counts?.[0] ?? 0)
   },
   leaderboard: ranking,

@@ -667,7 +667,7 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
   const receipts = receiptsFor(snapshot);
   const observedAt = snapshot.generatedAt || new Date(observedAtFromSnapshot(snapshot)).toISOString();
   const derivedIntegrations: Array<ExternalIntegration | undefined> = [
-    hasReceipt(receipts.varaBridgeQuery) && hasReceipt(receipts.coreVaraBridgeIngest) && hasReceipt(receipts.broadcastVaraBridgeAnnounce)
+    hasReceiptOrReadResult(receipts.varaBridgeQuery) && hasReceipt(receipts.coreVaraBridgeIngest) && hasReceipt(receipts.broadcastVaraBridgeAnnounce)
       ? {
           handle: "varabridge",
           programId: "0xfb7ed5a79dc2ff15283a524a4489321b5e1f6341db2b9892be83b9568cc1fcb4",
@@ -697,7 +697,7 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
           }
         }
       : undefined,
-    hasReceipt(receipts.theBookDexStatus) && hasReceipt(receipts.coreTheBookDexIngest) && hasReceipt(receipts.broadcastTheBookDexAnnounce)
+    hasReceiptOrReadResult(receipts.theBookDexStatus) && hasReceipt(receipts.coreTheBookDexIngest) && hasReceipt(receipts.broadcastTheBookDexAnnounce)
       ? {
           handle: "thebookdex",
           programId: "0x7fa1988c57ba1134e2461c5fb36bc13d66c1dfbf47d36c5e9960b9ca2dc0e4c4",

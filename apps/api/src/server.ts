@@ -133,6 +133,10 @@ function startServerCron() {
   }
 
   console.log(`A2A Radar server cron enabled: every ${Math.round(serverCronIntervalMs / 1000)}s`);
+  setTimeout(() => {
+    void runServerCronTick();
+  }, 10_000).unref?.();
+
   const timer = setInterval(() => {
     void runServerCronTick();
   }, serverCronIntervalMs);
@@ -222,7 +226,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
     }
 
     try {
-      const result = await runGrowthCycle({ repoRoot });
+      const result = await runGrowthCycleAndRefreshIndex("api");
       sendJson(response, 200, result);
     } catch (error) {
       console.error("Growth cycle failed", error instanceof Error ? error.message : error);
