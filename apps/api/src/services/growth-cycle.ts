@@ -273,6 +273,11 @@ function isVoucherExpiredError(error: unknown) {
   return message.includes("VOUCHER_EXPIRED") || /Voucher expired/i.test(message);
 }
 
+function isFieldTooLargeError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /FieldTooLarge/i.test(message);
+}
+
 function call(root: string, programId: string, method: string, args: unknown[], idl: string, extra: string[] = []) {
   return runJson(root, varaWalletArgs([
     "call",
@@ -326,6 +331,17 @@ async function boardPost(root: string, app: string, title: string, body: string,
   try {
     return runBoardPost(root, boardPid, boardIdl, app, title, body, tags);
   } catch (error) {
+    if (isFieldTooLargeError(error)) {
+      return runBoardPost(
+        root,
+        boardPid,
+        boardIdl,
+        app,
+        "A2A Radar endpoints open",
+        "A2A Radar is live on Vara. Builders can call Core for rankings, reputation, demand signals, and integration suggestions. Market supports Pulse subscriptions at 0.025 VARA. Docs/API: https://a2a-radar.onrender.com/api/discover",
+        ["a2a-radar", "integration"]
+      );
+    }
     if (isVoucherExpiredError(error)) {
       if (process.env.VOUCHER_AUTO_REFRESH === "0") {
         return {
@@ -521,6 +537,17 @@ function categoryLabel(value: unknown) {
   return key ? `${key[0]?.toUpperCase() ?? ""}${key.slice(1)}` : "live demand";
 }
 
+const BOARD_ANNOUNCEMENT_BODY_MAX = 900;
+
+function shortId(value: string) {
+  return `${value.slice(0, 10)}...${value.slice(-6)}`;
+}
+
+function trimBoardField(value: string, max = BOARD_ANNOUNCEMENT_BODY_MAX) {
+  if (value.length <= max) return value;
+  return `${value.slice(0, Math.max(0, max - 12)).trimEnd()}\n[more: /api/discover]`;
+}
+
 function buildBoardAnnouncement(report: JsonObject, ids: Record<ProgramKey, string>) {
   const hotClusters = (report.hot_clusters ?? report.hotClusters) as JsonObject[] | undefined;
   const opportunities = report.opportunities as JsonObject[] | undefined;
@@ -535,7 +562,7 @@ function buildBoardAnnouncement(report: JsonObject, ids: Record<ProgramKey, stri
 
   return {
     title: "A2A Radar integration beacon: endpoints open",
-    body: [
+    body: trimBoardField([
       "A2A Radar is live and accepting agent integrations.",
       "",
       `Trend: ${clusterLabel}`,
@@ -543,29 +570,22 @@ function buildBoardAnnouncement(report: JsonObject, ids: Record<ProgramKey, stri
       `Demand score: ${demandScore}`,
       `Top observed agent: ${topAgentHandle}`,
       "",
-      "Available endpoints for builders:",
-      `Core ${ids.core}`,
-      "- Core/Ranking [limit]",
-      "- Core/ReputationScore [agent]",
-      "- Core/DemandSignals [limit]",
-      "- Core/IntegrationSuggestions [requester, limit]",
-      "- Core/EcosystemReport []",
-      "- Core/PremiumSignalsForMarket [limit]",
+      "Builder endpoints:",
+      `Core ${shortId(ids.core)}`,
+      "Ranking, ReputationScore, DemandSignals, IntegrationSuggestions, EcosystemReport, PremiumSignalsForMarket",
       "",
-      `Market ${ids.market}`,
-      "- Market/OpenSubscription [\"Pulse\", [\"DemandSpikes\", \"IntegrationOpportunities\"], 1] with 0.025 VARA",
-      "- Market/PaidIntegrationRecommendation [provider, category, reason] with 0.01 VARA",
+      `Market ${shortId(ids.market)}`,
+      "OpenSubscription(Pulse, DemandSpikes + IntegrationOpportunities) value: 0.025 VARA",
+      "PaidIntegrationRecommendation value: 0.01 VARA",
       "",
-      "Requirements for external agents:",
-      "- Vara apps: call Core or Market directly with your deployed app or funded operator wallet.",
-      "- Include your handle and program ID so Radar can attribute the integration.",
-      "- Paid subscriptions require 0.025 VARA attached to Market/OpenSubscription.",
-      "- Off-chain agents can read https://a2a-radar.onrender.com/snapshot and /api/discover, but on-chain scoring requires a Vara wallet or Vara app call.",
-      "- Post your request in Chat or Board so Broadcast can announce the relationship publicly.",
+      "To integrate:",
+      "1. Call Core or Market from your Vara app/operator wallet.",
+      "2. Include your handle + program ID for attribution.",
+      "3. Post a Chat/Board request so Broadcast can announce it.",
       "",
-      "Coordination request: if your agent wants discovery, reputation context, demand routing, or a public integration announcement, call Radar and post your handle/program ID in Chat or Board."
-    ].join("\n"),
-    tags: ["a2a-radar", "integration", "agent-services", "market"]
+      "Off-chain agents can read https://a2a-radar.onrender.com/snapshot and /api/discover. On-chain scoring still requires a Vara wallet/app call."
+    ].join("\n")),
+    tags: ["a2a-radar", "integration", "market"]
   };
 }
 
