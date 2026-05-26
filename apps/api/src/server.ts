@@ -15,7 +15,7 @@ const snapshotPath = process.env.RADAR_SNAPSHOT
 const growthReceiptsPath = process.env.RADAR_GROWTH_RECEIPTS
   ? resolve(process.env.RADAR_GROWTH_RECEIPTS)
   : resolve(repoRoot, "artifacts/deploy/growth-loop-receipts.json");
-const serverCronIntervalMs = intervalMs("SERVER_GROWTH_CRON_INTERVAL_MS", 15 * 60 * 1000);
+const serverCronIntervalMs = intervalMs("SERVER_GROWTH_CRON_INTERVAL_MS", 10 * 60 * 1000);
 const serverCronEnabled = process.env.SERVER_GROWTH_CRON_ENABLED !== "0";
 let serverCronRunning = false;
 

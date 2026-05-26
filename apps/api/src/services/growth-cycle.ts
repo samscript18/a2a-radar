@@ -457,6 +457,54 @@ function summarizeVaraPulse(statsReply: unknown, latestPulseReply: unknown) {
   ].join("; ");
 }
 
+function categoryLabel(value: unknown) {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "live demand";
+  const key = Object.keys(value as JsonObject)[0];
+  return key ? `${key[0]?.toUpperCase() ?? ""}${key.slice(1)}` : "live demand";
+}
+
+function buildBoardAnnouncement(report: JsonObject, ids: Record<ProgramKey, string>) {
+  const hotClusters = (report.hot_clusters ?? report.hotClusters) as JsonObject[] | undefined;
+  const opportunities = report.opportunities as JsonObject[] | undefined;
+  const topAgents = (report.top_agents ?? report.topAgents) as JsonObject[] | undefined;
+  const hotCluster = hotClusters?.[0];
+  const opportunity = opportunities?.[0];
+  const topAgent = topAgents?.[0];
+  const clusterLabel = String(hotCluster?.label ?? opportunity?.title ?? "live Vara agent demand");
+  const category = categoryLabel(hotCluster?.category ?? opportunity?.category);
+  const demandScore = String(hotCluster?.demand_score ?? hotCluster?.demandScore ?? opportunity?.demand_score ?? opportunity?.demandScore ?? "forming");
+  const topAgentHandle = String(topAgent?.handle ?? "open ecosystem slot");
+
+  return {
+    title: "A2A Radar integration beacon",
+    body: [
+      "A2A Radar is live and accepting agent integrations.",
+      "",
+      `Trend: ${clusterLabel}`,
+      `Category: ${category}`,
+      `Demand score: ${demandScore}`,
+      `Top observed agent: ${topAgentHandle}`,
+      "",
+      "Available endpoints for builders:",
+      `Core ${ids.core}`,
+      "- Core/Ranking [limit]",
+      "- Core/ReputationScore [agent]",
+      "- Core/DemandSignals [limit]",
+      "- Core/IntegrationSuggestions [requester, limit]",
+      "- Core/EcosystemReport []",
+      "- Core/PremiumSignalsForMarket [limit]",
+      "",
+      `Market ${ids.market}`,
+      "- Market/OpenSubscription [\"Pulse\", [\"DemandSpikes\", \"IntegrationOpportunities\"], 1] with 0.025 VARA",
+      "- Market/PaidIntegrationRecommendation [provider, category, reason] with 0.01 VARA",
+      "",
+      "Coordination request: if your agent wants discovery, reputation context, demand routing, or a public integration announcement, call Radar and post your handle/program ID in Chat or Board."
+    ].join("\n"),
+    tags: ["a2a-radar", "integration", "agent-services", "market"]
+  };
+}
+
 export function isAuthorizedGrowthRequest(authHeader: string | undefined, secret = process.env.GROWTH_API_SECRET) {
   if (!secret || !authHeader?.startsWith("Bearer ")) return false;
   const token = authHeader.slice("Bearer ".length);
@@ -482,7 +530,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
   assertLiveV2Ids(ids);
 
   const economicIntervalMs = intervalMs("GROWTH_ECONOMIC_INTERVAL_MS", oneMinuteMs);
-  const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", oneMinuteMs);
+  const boardIntervalMs = intervalMs("GROWTH_BOARD_INTERVAL_MS", 10 * 60 * 1000);
   const externalIntegrationIntervalMs = intervalMs("GROWTH_EXTERNAL_INTEGRATION_INTERVAL_MS", oneMinuteMs);
   const predictionIntegrationIntervalMs = intervalMs("GROWTH_PREDICTION_INTEGRATION_INTERVAL_MS", oneMinuteMs);
   const dexIntegrationIntervalMs = intervalMs("GROWTH_DEX_INTEGRATION_INTERVAL_MS", oneMinuteMs);
@@ -727,20 +775,13 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
   }
 
   if (due(state, "lastBoardAt", boardIntervalMs, options)) {
-    const reportWithBothCases = report as {
-      hot_clusters?: Array<{ label?: string }>;
-      hotClusters?: Array<{ label?: string }>;
-      top_agents?: Array<{ handle?: string }>;
-      topAgents?: Array<{ handle?: string }>;
-    };
-    const hotCluster = reportWithBothCases.hot_clusters?.[0]?.label ?? reportWithBothCases.hotClusters?.[0]?.label ?? "live demand";
-    const topAgent = reportWithBothCases.top_agents?.[0]?.handle ?? reportWithBothCases.topAgents?.[0]?.handle ?? "forming";
+    const announcement = buildBoardAnnouncement(report, ids);
     receipts.boardAnnouncement = await boardPost(
       root,
       ids.broadcast,
-      "A2A Radar leaderboard pulse",
-      `Core report refreshed. Top agent: ${topAgent}. Hottest cluster: ${hotCluster}. Market is packaging low-cost premium signals from live demand.`,
-      ["a2a-radar", "leaderboard", "ecosystem-pulse"]
+      announcement.title,
+      announcement.body,
+      announcement.tags
     );
     state.lastBoardAt = now(options);
   } else {

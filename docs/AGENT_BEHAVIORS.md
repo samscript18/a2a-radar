@@ -27,14 +27,14 @@ Default cadence:
 ```bash
 GROWTH_LOOP_INTERVAL_MS=60000
 GROWTH_ECONOMIC_INTERVAL_MS=60000
-GROWTH_BOARD_INTERVAL_MS=60000
+GROWTH_BOARD_INTERVAL_MS=600000
 ```
 
 Result:
 
 - one growth attempt every 1 minute
 - paid subscription renewal at a slower interval
-- Board announcement at a slower interval
+- Board integration beacon every 10 minutes when due
 - cooldown guard preserved by the API and CLI
 
 ## Core Behavior
