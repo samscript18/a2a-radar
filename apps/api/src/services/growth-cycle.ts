@@ -351,8 +351,17 @@ async function boardPost(root: string, app: string, title: string, body: string,
           action: "Set VOUCHER_AUTO_REFRESH=1 or refresh VOUCHER_ID before Board writes can resume."
         };
       }
-      await requestVoucher(root, boardPid);
-      return runBoardPost(root, boardPid, boardIdl, app, title, body, tags);
+      try {
+        await requestVoucher(root, boardPid);
+        return runBoardPost(root, boardPid, boardIdl, app, title, body, tags);
+      } catch (refreshError) {
+        return {
+          skipped: true,
+          reason: "VOUCHER_REFRESH_FAILED",
+          error: refreshError instanceof Error ? refreshError.message.slice(0, 500) : String(refreshError).slice(0, 500),
+          action: "Refresh VOUCHER_ID manually or disable Board writes until the voucher service returns a fresh voucher."
+        };
+      }
     }
     throw error;
   }
