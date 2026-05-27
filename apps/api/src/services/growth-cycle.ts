@@ -382,13 +382,28 @@ function receiptError(error: unknown) {
   };
 }
 
+function integrationLabel(key: string) {
+  return key
+    .replace(/IntegrationError$/, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/^./, (value) => value.toUpperCase());
+}
+
+function markIntegrationSkipped(receipts: JsonObject, receiptKey: string, reason: string) {
+  receipts[receiptKey] = { skipped: true, reason };
+  console.log(`[growth-cycle] ${integrationLabel(receiptKey)} skipped: ${reason}`);
+}
+
 function runBestEffortIntegration(receipts: JsonObject, errorKey: string, run: () => void) {
+  const label = integrationLabel(errorKey);
+  console.log(`[growth-cycle] ${label} started`);
   try {
     run();
+    console.log(`[growth-cycle] ${label} succeeded`);
     return true;
   } catch (error) {
     receipts[errorKey] = receiptError(error);
-    console.error(`[growth-cycle] ${errorKey} failed`, error instanceof Error ? error.message : error);
+    console.error(`[growth-cycle] ${label} failed`, error instanceof Error ? error.message : error);
     return false;
   }
 }
@@ -727,7 +742,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastVaraBridgeAt = now(options);
   } else {
-    receipts.varaBridgeQuery = { skipped: true, reason: "external integration interval not due" };
+    markIntegrationSkipped(receipts, "varaBridgeQuery", "external integration interval not due");
   }
 
   if (due(state, "lastHy4PredictAt", predictionIntegrationIntervalMs, options)) {
@@ -756,7 +771,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastHy4PredictAt = now(options);
   } else {
-    receipts.hy4PredictFastMarket = { skipped: true, reason: "prediction integration interval not due" };
+    markIntegrationSkipped(receipts, "hy4PredictFastMarket", "prediction integration interval not due");
   }
 
   if (due(state, "lastTheBookDexAt", dexIntegrationIntervalMs, options)) {
@@ -792,7 +807,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastTheBookDexAt = now(options);
   } else {
-    receipts.theBookDexSignalCollab = { skipped: true, reason: "DEX integration interval not due" };
+    markIntegrationSkipped(receipts, "theBookDexSignalCollab", "DEX integration interval not due");
   }
 
   if (due(state, "lastVaraStrategyAt", externalIntegrationIntervalMs, options)) {
@@ -819,7 +834,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastVaraStrategyAt = now(options);
   } else {
-    receipts.varaStrategyStats = { skipped: true, reason: "VaraStrategy integration interval not due" };
+    markIntegrationSkipped(receipts, "varaStrategyStats", "VaraStrategy integration interval not due");
   }
 
   if (due(state, "lastVaraFlowAt", externalIntegrationIntervalMs, options)) {
@@ -846,7 +861,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastVaraFlowAt = now(options);
   } else {
-    receipts.varaFlowStats = { skipped: true, reason: "VaraFlow integration interval not due" };
+    markIntegrationSkipped(receipts, "varaFlowStats", "VaraFlow integration interval not due");
   }
 
   if (due(state, "lastVaraPulseAt", externalIntegrationIntervalMs, options)) {
@@ -873,7 +888,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastVaraPulseAt = now(options);
   } else {
-    receipts.varaPulseStats = { skipped: true, reason: "VaraPulse integration interval not due" };
+    markIntegrationSkipped(receipts, "varaPulseStats", "VaraPulse integration interval not due");
   }
 
   if (due(state, "lastAgentPulseAt", externalIntegrationIntervalMs, options)) {
@@ -900,7 +915,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastAgentPulseAt = now(options);
   } else {
-    receipts.agentPulseStats = { skipped: true, reason: "Agent Pulse integration interval not due" };
+    markIntegrationSkipped(receipts, "agentPulseStats", "Agent Pulse integration interval not due");
   }
 
   if (due(state, "lastInfiniteBountyAt", externalIntegrationIntervalMs, options)) {
@@ -927,7 +942,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastInfiniteBountyAt = now(options);
   } else {
-    receipts.infiniteBountyConfig = { skipped: true, reason: "Infinite Bounty integration interval not due" };
+    markIntegrationSkipped(receipts, "infiniteBountyConfig", "Infinite Bounty integration interval not due");
   }
 
   if (due(state, "lastA2aReputationAt", externalIntegrationIntervalMs, options)) {
@@ -954,7 +969,7 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     });
     if (ok) state.lastA2aReputationAt = now(options);
   } else {
-    receipts.a2aReputationStatus = { skipped: true, reason: "A2A Reputation integration interval not due" };
+    markIntegrationSkipped(receipts, "a2aReputationStatus", "A2A Reputation integration interval not due");
   }
 
   let subscriptions = 0;
