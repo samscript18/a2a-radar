@@ -365,6 +365,25 @@ function countExecuted(receipts: JsonObject) {
   }).length;
 }
 
+function receiptError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    failed: true,
+    error: message.slice(0, 900)
+  };
+}
+
+function runBestEffortIntegration(receipts: JsonObject, errorKey: string, run: () => void) {
+  try {
+    run();
+    return true;
+  } catch (error) {
+    receipts[errorKey] = receiptError(error);
+    console.error(`[growth-cycle] ${errorKey} failed`, error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
 function boardAnnouncementId(receipts: JsonObject) {
   const board = receipts.boardAnnouncement as JsonObject | undefined;
   const result = board?.result;
@@ -677,236 +696,254 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
   );
 
   if (due(state, "lastVaraBridgeAt", externalIntegrationIntervalMs, options)) {
-    const bridgeReceipt = call(root, VARABRIDGE.programId, "VaraBridge/QueryAndReply", [VARABRIDGE.query], VARABRIDGE.idl);
-    const bridgeReply = unwrap(bridgeReceipt) as JsonObject;
-    const bridgeSummary = summarizeBridgeReply(bridgeReply);
-    receipts.varaBridgeQuery = bridgeReceipt;
-    receipts.coreVaraBridgeIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", VARABRIDGE.programId, "Oracle", null, 3, bridgeSummary],
-      agents.core.idl
-    );
-    receipts.broadcastVaraBridgeAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [VARABRIDGE.programId, bridgeSummary],
-      agents.broadcast.idl
-    );
-    state.lastVaraBridgeAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "varaBridgeIntegrationError", () => {
+      const bridgeReceipt = call(root, VARABRIDGE.programId, "VaraBridge/QueryAndReply", [VARABRIDGE.query], VARABRIDGE.idl);
+      const bridgeReply = unwrap(bridgeReceipt) as JsonObject;
+      const bridgeSummary = summarizeBridgeReply(bridgeReply);
+      receipts.varaBridgeQuery = bridgeReceipt;
+      receipts.coreVaraBridgeIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", VARABRIDGE.programId, "Oracle", null, 3, bridgeSummary],
+        agents.core.idl
+      );
+      receipts.broadcastVaraBridgeAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [VARABRIDGE.programId, bridgeSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastVaraBridgeAt = now(options);
   } else {
     receipts.varaBridgeQuery = { skipped: true, reason: "external integration interval not due" };
   }
 
   if (due(state, "lastHy4PredictAt", predictionIntegrationIntervalMs, options)) {
-    const currentBlockReceipt = callNoArgs(root, HY4_PREDICT.programId, "FastMarket/CurrentBlock", HY4_PREDICT.idl);
-    const currentBlock = unwrap(currentBlockReceipt);
-    const fastMarketReceipt = call(root, HY4_PREDICT.programId, "FastMarket/FastMarket", [HY4_PREDICT.marketId], HY4_PREDICT.idl);
-    const fastMarket = unwrap(fastMarketReceipt);
-    const hy4Summary = summarizeHy4Predict(currentBlock, fastMarket);
-    receipts.hy4PredictCurrentBlock = currentBlockReceipt;
-    receipts.hy4PredictFastMarket = fastMarketReceipt;
-    receipts.coreHy4PredictIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", HY4_PREDICT.programId, "Prediction", null, 3, hy4Summary],
-      agents.core.idl
-    );
-    receipts.broadcastHy4PredictAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [HY4_PREDICT.programId, hy4Summary],
-      agents.broadcast.idl
-    );
-    state.lastHy4PredictAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "hy4PredictIntegrationError", () => {
+      const currentBlockReceipt = callNoArgs(root, HY4_PREDICT.programId, "FastMarket/CurrentBlock", HY4_PREDICT.idl);
+      const currentBlock = unwrap(currentBlockReceipt);
+      const fastMarketReceipt = call(root, HY4_PREDICT.programId, "FastMarket/FastMarket", [HY4_PREDICT.marketId], HY4_PREDICT.idl);
+      const fastMarket = unwrap(fastMarketReceipt);
+      const hy4Summary = summarizeHy4Predict(currentBlock, fastMarket);
+      receipts.hy4PredictCurrentBlock = currentBlockReceipt;
+      receipts.hy4PredictFastMarket = fastMarketReceipt;
+      receipts.coreHy4PredictIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", HY4_PREDICT.programId, "Prediction", null, 3, hy4Summary],
+        agents.core.idl
+      );
+      receipts.broadcastHy4PredictAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [HY4_PREDICT.programId, hy4Summary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastHy4PredictAt = now(options);
   } else {
     receipts.hy4PredictFastMarket = { skipped: true, reason: "prediction integration interval not due" };
   }
 
   if (due(state, "lastTheBookDexAt", dexIntegrationIntervalMs, options)) {
-    receipts.theBookDexSignalCollab = call(
-      root,
-      THEBOOKDEX.programId,
-      "Orderbook/SignalCollab",
-      [ids.market, "A2A Radar is indexing thebookdex market depth for ecosystem intelligence."],
-      THEBOOKDEX.idl
-    );
-    const statusReceipt = callNoArgs(root, THEBOOKDEX.programId, "Orderbook/GetStatus", THEBOOKDEX.idl);
-    const orderbookReceipt = call(root, THEBOOKDEX.programId, "Orderbook/GetOrderbook", [THEBOOKDEX.orderbookAsset], THEBOOKDEX.idl);
-    const poolsReceipt = callNoArgs(root, THEBOOKDEX.programId, "Amm/ListPools", THEBOOKDEX.idl);
-    const dexSummary = summarizeTheBookDex(unwrap(statusReceipt), unwrap(orderbookReceipt), unwrap(poolsReceipt));
-    receipts.theBookDexStatus = statusReceipt;
-    receipts.theBookDexOrderbook = orderbookReceipt;
-    receipts.theBookDexPools = poolsReceipt;
-    receipts.coreTheBookDexIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", THEBOOKDEX.programId, "Marketplace", null, 3, dexSummary],
-      agents.core.idl
-    );
-    receipts.broadcastTheBookDexAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [THEBOOKDEX.programId, dexSummary],
-      agents.broadcast.idl
-    );
-    state.lastTheBookDexAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "theBookDexIntegrationError", () => {
+      receipts.theBookDexSignalCollab = call(
+        root,
+        THEBOOKDEX.programId,
+        "Orderbook/SignalCollab",
+        [ids.market, "A2A Radar is indexing thebookdex market depth for ecosystem intelligence."],
+        THEBOOKDEX.idl
+      );
+      const statusReceipt = callNoArgs(root, THEBOOKDEX.programId, "Orderbook/GetStatus", THEBOOKDEX.idl);
+      const orderbookReceipt = call(root, THEBOOKDEX.programId, "Orderbook/GetOrderbook", [THEBOOKDEX.orderbookAsset], THEBOOKDEX.idl);
+      const poolsReceipt = callNoArgs(root, THEBOOKDEX.programId, "Amm/ListPools", THEBOOKDEX.idl);
+      const dexSummary = summarizeTheBookDex(unwrap(statusReceipt), unwrap(orderbookReceipt), unwrap(poolsReceipt));
+      receipts.theBookDexStatus = statusReceipt;
+      receipts.theBookDexOrderbook = orderbookReceipt;
+      receipts.theBookDexPools = poolsReceipt;
+      receipts.coreTheBookDexIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", THEBOOKDEX.programId, "Marketplace", null, 3, dexSummary],
+        agents.core.idl
+      );
+      receipts.broadcastTheBookDexAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [THEBOOKDEX.programId, dexSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastTheBookDexAt = now(options);
   } else {
     receipts.theBookDexSignalCollab = { skipped: true, reason: "DEX integration interval not due" };
   }
 
   if (due(state, "lastVaraStrategyAt", externalIntegrationIntervalMs, options)) {
-    const strategyStatsReceipt = callNoArgs(root, VARA_STRATEGY.programId, "VaraStrategy/GetStats", VARA_STRATEGY.idl);
-    const strategyRecommendationsReceipt = call(root, VARA_STRATEGY.programId, "VaraStrategy/GetRecommendations", [3], VARA_STRATEGY.idl);
-    const strategySummary = summarizeVaraStrategy(unwrap(strategyStatsReceipt), unwrap(strategyRecommendationsReceipt));
-    receipts.varaStrategyStats = strategyStatsReceipt;
-    receipts.varaStrategyRecommendations = strategyRecommendationsReceipt;
-    receipts.coreVaraStrategyIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", VARA_STRATEGY.programId, "Marketplace", null, 3, strategySummary],
-      agents.core.idl
-    );
-    receipts.broadcastVaraStrategyAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [VARA_STRATEGY.programId, strategySummary],
-      agents.broadcast.idl
-    );
-    state.lastVaraStrategyAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "varaStrategyIntegrationError", () => {
+      const strategyStatsReceipt = callNoArgs(root, VARA_STRATEGY.programId, "VaraStrategy/GetStats", VARA_STRATEGY.idl);
+      const strategyRecommendationsReceipt = call(root, VARA_STRATEGY.programId, "VaraStrategy/GetRecommendations", [3], VARA_STRATEGY.idl);
+      const strategySummary = summarizeVaraStrategy(unwrap(strategyStatsReceipt), unwrap(strategyRecommendationsReceipt));
+      receipts.varaStrategyStats = strategyStatsReceipt;
+      receipts.varaStrategyRecommendations = strategyRecommendationsReceipt;
+      receipts.coreVaraStrategyIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", VARA_STRATEGY.programId, "Marketplace", null, 3, strategySummary],
+        agents.core.idl
+      );
+      receipts.broadcastVaraStrategyAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [VARA_STRATEGY.programId, strategySummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastVaraStrategyAt = now(options);
   } else {
     receipts.varaStrategyStats = { skipped: true, reason: "VaraStrategy integration interval not due" };
   }
 
   if (due(state, "lastVaraFlowAt", externalIntegrationIntervalMs, options)) {
-    const flowStatsReceipt = callNoArgs(root, VARA_FLOW.programId, "VaraFlow/GetStats", VARA_FLOW.idl);
-    const flowWorkflowsReceipt = call(root, VARA_FLOW.programId, "VaraFlow/ListWorkflows", [null, true], VARA_FLOW.idl);
-    const flowSummary = summarizeVaraFlow(unwrap(flowStatsReceipt), unwrap(flowWorkflowsReceipt));
-    receipts.varaFlowStats = flowStatsReceipt;
-    receipts.varaFlowWorkflows = flowWorkflowsReceipt;
-    receipts.coreVaraFlowIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", VARA_FLOW.programId, "Analytics", null, 3, flowSummary],
-      agents.core.idl
-    );
-    receipts.broadcastVaraFlowAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [VARA_FLOW.programId, flowSummary],
-      agents.broadcast.idl
-    );
-    state.lastVaraFlowAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "varaFlowIntegrationError", () => {
+      const flowStatsReceipt = callNoArgs(root, VARA_FLOW.programId, "VaraFlow/GetStats", VARA_FLOW.idl);
+      const flowWorkflowsReceipt = call(root, VARA_FLOW.programId, "VaraFlow/ListWorkflows", [null, true], VARA_FLOW.idl);
+      const flowSummary = summarizeVaraFlow(unwrap(flowStatsReceipt), unwrap(flowWorkflowsReceipt));
+      receipts.varaFlowStats = flowStatsReceipt;
+      receipts.varaFlowWorkflows = flowWorkflowsReceipt;
+      receipts.coreVaraFlowIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", VARA_FLOW.programId, "Analytics", null, 3, flowSummary],
+        agents.core.idl
+      );
+      receipts.broadcastVaraFlowAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [VARA_FLOW.programId, flowSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastVaraFlowAt = now(options);
   } else {
     receipts.varaFlowStats = { skipped: true, reason: "VaraFlow integration interval not due" };
   }
 
   if (due(state, "lastVaraPulseAt", externalIntegrationIntervalMs, options)) {
-    const pulseStatsReceipt = callNoArgs(root, VARA_PULSE.programId, "VaraPulse/GetStats", VARA_PULSE.idl);
-    const pulseLatestReceipt = callNoArgs(root, VARA_PULSE.programId, "VaraPulse/GetLatestPulse", VARA_PULSE.idl);
-    const pulseSummary = summarizeVaraPulse(unwrap(pulseStatsReceipt), unwrap(pulseLatestReceipt));
-    receipts.varaPulseStats = pulseStatsReceipt;
-    receipts.varaPulseLatest = pulseLatestReceipt;
-    receipts.coreVaraPulseIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", VARA_PULSE.programId, "Social", null, 3, pulseSummary],
-      agents.core.idl
-    );
-    receipts.broadcastVaraPulseAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [VARA_PULSE.programId, pulseSummary],
-      agents.broadcast.idl
-    );
-    state.lastVaraPulseAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "varaPulseIntegrationError", () => {
+      const pulseStatsReceipt = callNoArgs(root, VARA_PULSE.programId, "VaraPulse/GetStats", VARA_PULSE.idl);
+      const pulseLatestReceipt = callNoArgs(root, VARA_PULSE.programId, "VaraPulse/GetLatestPulse", VARA_PULSE.idl);
+      const pulseSummary = summarizeVaraPulse(unwrap(pulseStatsReceipt), unwrap(pulseLatestReceipt));
+      receipts.varaPulseStats = pulseStatsReceipt;
+      receipts.varaPulseLatest = pulseLatestReceipt;
+      receipts.coreVaraPulseIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", VARA_PULSE.programId, "Social", null, 3, pulseSummary],
+        agents.core.idl
+      );
+      receipts.broadcastVaraPulseAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [VARA_PULSE.programId, pulseSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastVaraPulseAt = now(options);
   } else {
     receipts.varaPulseStats = { skipped: true, reason: "VaraPulse integration interval not due" };
   }
 
   if (due(state, "lastAgentPulseAt", externalIntegrationIntervalMs, options)) {
-    const pulseStatsReceipt = callNoArgs(root, AGENT_PULSE.programId, "PulseService/GetStats", AGENT_PULSE.idl);
-    const pulseFeedReceipt = call(root, AGENT_PULSE.programId, "PulseService/GetFeed", [5], AGENT_PULSE.idl);
-    const pulseSummary = summarizeAgentPulse(unwrap(pulseStatsReceipt), unwrap(pulseFeedReceipt));
-    receipts.agentPulseStats = pulseStatsReceipt;
-    receipts.agentPulseFeed = pulseFeedReceipt;
-    receipts.coreAgentPulseIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", AGENT_PULSE.programId, "Social", null, 3, pulseSummary],
-      agents.core.idl
-    );
-    receipts.broadcastAgentPulseAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [AGENT_PULSE.programId, pulseSummary],
-      agents.broadcast.idl
-    );
-    state.lastAgentPulseAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "agentPulseIntegrationError", () => {
+      const pulseStatsReceipt = callNoArgs(root, AGENT_PULSE.programId, "PulseService/GetStats", AGENT_PULSE.idl);
+      const pulseFeedReceipt = call(root, AGENT_PULSE.programId, "PulseService/GetFeed", [5], AGENT_PULSE.idl);
+      const pulseSummary = summarizeAgentPulse(unwrap(pulseStatsReceipt), unwrap(pulseFeedReceipt));
+      receipts.agentPulseStats = pulseStatsReceipt;
+      receipts.agentPulseFeed = pulseFeedReceipt;
+      receipts.coreAgentPulseIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", AGENT_PULSE.programId, "Social", null, 3, pulseSummary],
+        agents.core.idl
+      );
+      receipts.broadcastAgentPulseAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [AGENT_PULSE.programId, pulseSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastAgentPulseAt = now(options);
   } else {
     receipts.agentPulseStats = { skipped: true, reason: "Agent Pulse integration interval not due" };
   }
 
   if (due(state, "lastInfiniteBountyAt", externalIntegrationIntervalMs, options)) {
-    const bountyConfigReceipt = callNoArgs(root, INFINITE_BOUNTY.programId, "BountyBoard/GetConfig", INFINITE_BOUNTY.idl);
-    const openBountiesReceipt = call(root, INFINITE_BOUNTY.programId, "BountyBoard/GetBountiesByStatus", ["Open", null, 5], INFINITE_BOUNTY.idl);
-    const bountySummary = summarizeInfiniteBounty(unwrap(bountyConfigReceipt), unwrap(openBountiesReceipt));
-    receipts.infiniteBountyConfig = bountyConfigReceipt;
-    receipts.infiniteBountyOpen = openBountiesReceipt;
-    receipts.coreInfiniteBountyIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", INFINITE_BOUNTY.programId, "Marketplace", null, 3, bountySummary],
-      agents.core.idl
-    );
-    receipts.broadcastInfiniteBountyAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [INFINITE_BOUNTY.programId, bountySummary],
-      agents.broadcast.idl
-    );
-    state.lastInfiniteBountyAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "infiniteBountyIntegrationError", () => {
+      const bountyConfigReceipt = callNoArgs(root, INFINITE_BOUNTY.programId, "BountyBoard/GetConfig", INFINITE_BOUNTY.idl);
+      const openBountiesReceipt = call(root, INFINITE_BOUNTY.programId, "BountyBoard/GetBountiesByStatus", ["Open", null, 5], INFINITE_BOUNTY.idl);
+      const bountySummary = summarizeInfiniteBounty(unwrap(bountyConfigReceipt), unwrap(openBountiesReceipt));
+      receipts.infiniteBountyConfig = bountyConfigReceipt;
+      receipts.infiniteBountyOpen = openBountiesReceipt;
+      receipts.coreInfiniteBountyIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", INFINITE_BOUNTY.programId, "Marketplace", null, 3, bountySummary],
+        agents.core.idl
+      );
+      receipts.broadcastInfiniteBountyAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [INFINITE_BOUNTY.programId, bountySummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastInfiniteBountyAt = now(options);
   } else {
     receipts.infiniteBountyConfig = { skipped: true, reason: "Infinite Bounty integration interval not due" };
   }
 
   if (due(state, "lastA2aReputationAt", externalIntegrationIntervalMs, options)) {
-    const reputationStatusReceipt = callNoArgs(root, A2A_REPUTATION.programId, "ReputationOracle/OracleStatus", A2A_REPUTATION.idl);
-    const reputationLeaderboardReceipt = call(root, A2A_REPUTATION.programId, "ReputationOracle/EconomicLeaderboard", [5], A2A_REPUTATION.idl);
-    const reputationSummary = summarizeA2aReputation(unwrap(reputationStatusReceipt), unwrap(reputationLeaderboardReceipt));
-    receipts.a2aReputationStatus = reputationStatusReceipt;
-    receipts.a2aReputationLeaderboard = reputationLeaderboardReceipt;
-    receipts.coreA2aReputationIngest = call(
-      root,
-      ids.core,
-      "Core/IngestEvent",
-      ["ProviderResponse", A2A_REPUTATION.programId, "Reputation", null, 3, reputationSummary],
-      agents.core.idl
-    );
-    receipts.broadcastA2aReputationAnnounce = call(
-      root,
-      ids.broadcast,
-      "Broadcast/AnnounceIntegration",
-      [A2A_REPUTATION.programId, reputationSummary],
-      agents.broadcast.idl
-    );
-    state.lastA2aReputationAt = now(options);
+    const ok = runBestEffortIntegration(receipts, "a2aReputationIntegrationError", () => {
+      const reputationStatusReceipt = callNoArgs(root, A2A_REPUTATION.programId, "ReputationOracle/OracleStatus", A2A_REPUTATION.idl);
+      const reputationLeaderboardReceipt = call(root, A2A_REPUTATION.programId, "ReputationOracle/EconomicLeaderboard", [5], A2A_REPUTATION.idl);
+      const reputationSummary = summarizeA2aReputation(unwrap(reputationStatusReceipt), unwrap(reputationLeaderboardReceipt));
+      receipts.a2aReputationStatus = reputationStatusReceipt;
+      receipts.a2aReputationLeaderboard = reputationLeaderboardReceipt;
+      receipts.coreA2aReputationIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", A2A_REPUTATION.programId, "Reputation", null, 3, reputationSummary],
+        agents.core.idl
+      );
+      receipts.broadcastA2aReputationAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [A2A_REPUTATION.programId, reputationSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastA2aReputationAt = now(options);
   } else {
     receipts.a2aReputationStatus = { skipped: true, reason: "A2A Reputation integration interval not due" };
   }

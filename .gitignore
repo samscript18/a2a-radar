@@ -20,3 +20,8 @@ artifacts/social-proof-copy.md
 deploy/generated/
 tools/vara-wallet-patched/
 programs/*/.binpath
+operator-keyring.json
+default-wallet.json
+subwallet.json
+a2a-radar.json
+subwallet-import.json
