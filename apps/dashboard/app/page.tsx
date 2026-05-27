@@ -721,7 +721,9 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
     snapshot.raw?.latestVaraPulseIntegration,
     snapshot.raw?.latestAgentPulseIntegration,
     snapshot.raw?.latestInfiniteBountyIntegration,
-    snapshot.raw?.latestA2aReputationIntegration
+    snapshot.raw?.latestA2aReputationIntegration,
+    snapshot.raw?.latestAanTvIntegration,
+    snapshot.raw?.latestZeeastCasinoIntegration
   ].filter((item): item is ExternalIntegration => Boolean(item));
 
   const receipts = receiptsFor(snapshot);
@@ -863,6 +865,39 @@ function externalIntegrationsFor(snapshot: DashboardSnapshot): ExternalIntegrati
             broadcastAnnounce: receipts.broadcastA2aReputationAnnounce
           }
         }
+      : undefined,
+    hasReceiptOrReadResult(receipts.aanTvCoverageQueue) && hasReceipt(receipts.coreAanTvIngest) && hasReceipt(receipts.broadcastAanTvAnnounce)
+      ? {
+          handle: "aan-tv",
+          programId: "0xae7f692ae14dfc2751520439e91f85a9f25239dcfa105a8e3ee76bd073147d6f",
+          category: "Analytics",
+          summary: "A2A Radar read AAN-TV coverage and AAN-TV Data stats, routed ecosystem activity context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            coverage: receipts.aanTvCoverageQueue,
+            appStats: receipts.aanTvDataAppStats,
+            topCallers: receipts.aanTvDataTopCallers,
+            coreIngest: receipts.coreAanTvIngest,
+            broadcastAnnounce: receipts.broadcastAanTvAnnounce
+          }
+        }
+      : undefined,
+    hasReceiptOrReadResult(receipts.zeeastCasinoConfig) && hasReceipt(receipts.coreZeeastCasinoIngest) && hasReceipt(receipts.broadcastZeeastCasinoAnnounce)
+      ? {
+          handle: "zeeast-casino-v3",
+          programId: "0x8e674827125caafbbd118466e82bcefd27b3bcdc6fd080f39fc0a685e4108202",
+          category: "Casino",
+          summary: "A2A Radar read Zeeast Casino jackpot, config, leaderboard, and player stats, routed casino activity context into Core, and announced the integration through Broadcast.",
+          observedAt,
+          receipts: {
+            config: receipts.zeeastCasinoConfig,
+            jackpot: receipts.zeeastCasinoJackpot,
+            topScores: receipts.zeeastCasinoTopScores,
+            coreStats: receipts.zeeastCasinoCoreStats,
+            coreIngest: receipts.coreZeeastCasinoIngest,
+            broadcastAnnounce: receipts.broadcastZeeastCasinoAnnounce
+          }
+        }
       : undefined
   ];
 
@@ -937,6 +972,20 @@ const KNOWN_EXTERNAL_INTEGRATIONS = [
     category: "Reputation",
     match: ["a2a reputation", "a2a-reputation"],
     summary: "A2A Radar read A2A Reputation oracle status and routed reputation context into Core and Broadcast."
+  },
+  {
+    handle: "aan-tv",
+    programId: "0xae7f692ae14dfc2751520439e91f85a9f25239dcfa105a8e3ee76bd073147d6f",
+    category: "Analytics",
+    match: ["aan-tv", "aan tv"],
+    summary: "A2A Radar read AAN-TV coverage and analytics context and routed it into Core and Broadcast."
+  },
+  {
+    handle: "zeeast-casino-v3",
+    programId: "0x8e674827125caafbbd118466e82bcefd27b3bcdc6fd080f39fc0a685e4108202",
+    category: "Casino",
+    match: ["zeeast", "casino"],
+    summary: "A2A Radar read Zeeast Casino jackpot and leaderboard context and routed it into Core and Broadcast."
   }
 ] as const;
 

@@ -92,6 +92,22 @@ const A2A_REPUTATION = {
   idl: "integrations/a2a-reputation/agent.idl"
 } as const;
 
+const AAN_TV = {
+  programId: "0xae7f692ae14dfc2751520439e91f85a9f25239dcfa105a8e3ee76bd073147d6f",
+  idl: "integrations/aan-tv/aan_tv.idl"
+} as const;
+
+const AAN_TV_DATA = {
+  programId: "0xec8f2b2ecb27ea82bfe7565bf981db1749a61fc27558e80ae575eadf34530e5c",
+  idl: "integrations/aan-tv/aan_tv_data.idl"
+} as const;
+
+const ZEEAST_CASINO = {
+  programId: "0x8e674827125caafbbd118466e82bcefd27b3bcdc6fd080f39fc0a685e4108202",
+  fallbackProgramId: "0x158e7076a8aa2ebc725a7b43951ea75d754bb9d2128b1bc62c7e6582d6759503",
+  idl: "integrations/zeeast-casino/vara_casino.idl"
+} as const;
+
 function repoRoot(options: GrowthCycleOptions = {}) {
   return resolve(options.repoRoot ?? process.cwd());
 }
@@ -574,6 +590,33 @@ function summarizeA2aReputation(statusReply: unknown, leaderboardReply: unknown)
   ].join("; ");
 }
 
+function summarizeAanTv(coverageReply: unknown, appStatsReply: unknown, topCallersReply: unknown) {
+  const coverage = coverageReply && typeof coverageReply === "object" ? coverageReply as JsonObject : {};
+  const coverageItems = Array.isArray(coverage.items) ? coverage.items as JsonObject[] : [];
+  const stats = appStatsReply && typeof appStatsReply === "object" ? appStatsReply as JsonObject : {};
+  const topCallers = Array.isArray(topCallersReply) ? topCallersReply as JsonObject[] : [];
+  return [
+    "AAN-TV analytics read",
+    `coverage queue ${coverageItems.length}`,
+    `calls ${String(stats.total_calls ?? stats.totalCalls ?? 0)}`,
+    `posts ${String(stats.total_posts ?? stats.totalPosts ?? 0)}`,
+    `top callers ${topCallers.length}`
+  ].join("; ");
+}
+
+function summarizeZeeastCasino(configReply: unknown, jackpotReply: unknown, topScoresReply: unknown, statsReply: unknown) {
+  const config = configReply && typeof configReply === "object" ? configReply as JsonObject : {};
+  const scores = Array.isArray(topScoresReply) ? topScoresReply as unknown[] : [];
+  const stats = statsReply && typeof statsReply === "object" ? statsReply as JsonObject : {};
+  return [
+    "Zeeast Casino read",
+    `paused ${String(config.paused ?? "unknown")}`,
+    `jackpot ${String(jackpotReply ?? config.jackpot ?? "0")}`,
+    `leaderboard sample ${scores.length}`,
+    `tracked bets ${String(stats.total_bets ?? stats.totalBets ?? 0)}`
+  ].join("; ");
+}
+
 function categoryLabel(value: unknown) {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object") return "live demand";
@@ -970,6 +1013,66 @@ export async function runGrowthCycle(options: GrowthCycleOptions = {}): Promise<
     if (ok) state.lastA2aReputationAt = now(options);
   } else {
     markIntegrationSkipped(receipts, "a2aReputationStatus", "A2A Reputation integration interval not due");
+  }
+
+  if (due(state, "lastAanTvAt", externalIntegrationIntervalMs, options)) {
+    const ok = runBestEffortIntegration(receipts, "aanTvIntegrationError", () => {
+      const coverageReceipt = call(root, AAN_TV.programId, "AanTv/GetCoverageQueue", [null, 5], AAN_TV.idl);
+      const appStatsReceipt = call(root, AAN_TV_DATA.programId, "AanTvData/GetAppStats", [ids.core], AAN_TV_DATA.idl);
+      const topCallersReceipt = call(root, AAN_TV_DATA.programId, "AanTvData/GetTopCallers", [5], AAN_TV_DATA.idl);
+      const aanSummary = summarizeAanTv(unwrap(coverageReceipt), unwrap(appStatsReceipt), unwrap(topCallersReceipt));
+      receipts.aanTvCoverageQueue = coverageReceipt;
+      receipts.aanTvDataAppStats = appStatsReceipt;
+      receipts.aanTvDataTopCallers = topCallersReceipt;
+      receipts.coreAanTvIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", AAN_TV.programId, "Analytics", null, 3, aanSummary],
+        agents.core.idl
+      );
+      receipts.broadcastAanTvAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [AAN_TV.programId, aanSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastAanTvAt = now(options);
+  } else {
+    markIntegrationSkipped(receipts, "aanTvCoverageQueue", "AAN-TV integration interval not due");
+  }
+
+  if (due(state, "lastZeeastCasinoAt", externalIntegrationIntervalMs, options)) {
+    const ok = runBestEffortIntegration(receipts, "zeeastCasinoIntegrationError", () => {
+      const configReceipt = callNoArgs(root, ZEEAST_CASINO.programId, "Admin/Config", ZEEAST_CASINO.idl);
+      const jackpotReceipt = callNoArgs(root, ZEEAST_CASINO.programId, "Admin/JackpotBalance", ZEEAST_CASINO.idl);
+      const topScoresReceipt = call(root, ZEEAST_CASINO.programId, "Leaderboard/TopScores", [0], ZEEAST_CASINO.idl);
+      const statsReceipt = call(root, ZEEAST_CASINO.programId, "CoinFlip/Stats", [ids.core], ZEEAST_CASINO.idl);
+      const casinoSummary = summarizeZeeastCasino(unwrap(configReceipt), unwrap(jackpotReceipt), unwrap(topScoresReceipt), unwrap(statsReceipt));
+      receipts.zeeastCasinoConfig = configReceipt;
+      receipts.zeeastCasinoJackpot = jackpotReceipt;
+      receipts.zeeastCasinoTopScores = topScoresReceipt;
+      receipts.zeeastCasinoCoreStats = statsReceipt;
+      receipts.coreZeeastCasinoIngest = call(
+        root,
+        ids.core,
+        "Core/IngestEvent",
+        ["ProviderResponse", ZEEAST_CASINO.programId, "Casino", null, 3, casinoSummary],
+        agents.core.idl
+      );
+      receipts.broadcastZeeastCasinoAnnounce = call(
+        root,
+        ids.broadcast,
+        "Broadcast/AnnounceIntegration",
+        [ZEEAST_CASINO.programId, casinoSummary],
+        agents.broadcast.idl
+      );
+    });
+    if (ok) state.lastZeeastCasinoAt = now(options);
+  } else {
+    markIntegrationSkipped(receipts, "zeeastCasinoConfig", "Zeeast Casino integration interval not due");
   }
 
   let subscriptions = 0;

@@ -18,6 +18,8 @@ export interface RadarSnapshotRaw {
 	latestAgentPulseIntegration?: ExternalIntegration;
 	latestInfiniteBountyIntegration?: ExternalIntegration;
 	latestA2aReputationIntegration?: ExternalIntegration;
+	latestAanTvIntegration?: ExternalIntegration;
+	latestZeeastCasinoIntegration?: ExternalIntegration;
 	treasuryBackedCycles?: number;
 	treasuryBackedEconomicInteractions?: number;
 }

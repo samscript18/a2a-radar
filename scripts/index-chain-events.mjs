@@ -14,6 +14,10 @@ const TARGET_PARTNER_HANDLES = new Set([
   "agent-pulse",
   "infinite-bounty-v3",
   "a2a-reputation",
+  "aan-tv",
+  "aan-tv-data",
+  "zeeast-casino-v2",
+  "zeeast-casino-v3",
   "vara-rng",
   "thebookdex",
   "zeeast-casino"
@@ -136,6 +140,17 @@ function integrationNote(handle) {
       return "Randomness oracle candidate for event sampling and partner demos.";
     case "thebookdex":
       return "DEX/liquidity candidate for economy-side opportunity scans.";
+    case "agent-pulse":
+      return "Social feed candidate for ecosystem activity intelligence.";
+    case "infinite-bounty-v3":
+      return "Bounty marketplace candidate for opportunity routing.";
+    case "a2a-reputation":
+      return "Reputation oracle candidate for trust and routing context.";
+    case "aan-tv":
+    case "aan-tv-data":
+      return "AAN analytics and coverage candidate for ecosystem activity scans.";
+    case "zeeast-casino-v2":
+    case "zeeast-casino-v3":
     case "zeeast-casino":
       return "High-activity services candidate for reputation and risk scoring.";
     default:
@@ -491,6 +506,47 @@ function latestA2aReputationIntegration(growth, previous) {
   return previous;
 }
 
+function latestAanTvIntegration(growth, previous) {
+  if (hasReceiptOrReadResult(growth.aanTvCoverageQueue) && hasReceipt(growth.coreAanTvIngest) && hasReceipt(growth.broadcastAanTvAnnounce)) {
+    return {
+      handle: "aan-tv",
+      programId: "0xae7f692ae14dfc2751520439e91f85a9f25239dcfa105a8e3ee76bd073147d6f",
+      category: "Analytics",
+      summary: "A2A Radar read AAN-TV coverage and AAN-TV Data stats, routed ecosystem activity context into Core, and announced the integration through Broadcast.",
+      observedAt: new Date().toISOString(),
+      receipts: {
+        coverage: growth.aanTvCoverageQueue,
+        appStats: growth.aanTvDataAppStats,
+        topCallers: growth.aanTvDataTopCallers,
+        coreIngest: growth.coreAanTvIngest,
+        broadcastAnnounce: growth.broadcastAanTvAnnounce
+      }
+    };
+  }
+  return previous;
+}
+
+function latestZeeastCasinoIntegration(growth, previous) {
+  if (hasReceiptOrReadResult(growth.zeeastCasinoConfig) && hasReceipt(growth.coreZeeastCasinoIngest) && hasReceipt(growth.broadcastZeeastCasinoAnnounce)) {
+    return {
+      handle: "zeeast-casino-v3",
+      programId: "0x8e674827125caafbbd118466e82bcefd27b3bcdc6fd080f39fc0a685e4108202",
+      category: "Casino",
+      summary: "A2A Radar read Zeeast Casino jackpot, config, leaderboard, and player stats, routed casino activity context into Core, and announced the integration through Broadcast.",
+      observedAt: new Date().toISOString(),
+      receipts: {
+        config: growth.zeeastCasinoConfig,
+        jackpot: growth.zeeastCasinoJackpot,
+        topScores: growth.zeeastCasinoTopScores,
+        coreStats: growth.zeeastCasinoCoreStats,
+        coreIngest: growth.coreZeeastCasinoIngest,
+        broadcastAnnounce: growth.broadcastZeeastCasinoAnnounce
+      }
+    };
+  }
+  return previous;
+}
+
 async function readEcosystemIndex() {
   const query = `
     query A2ARadarEcosystemIndex {
@@ -683,6 +739,14 @@ const latestA2aReputationGrowth = latestGrowthReceiptsMatching(
   growthReceipts,
   (receipts) => hasReceiptOrReadResult(receipts.a2aReputationStatus) && hasReceipt(receipts.coreA2aReputationIngest) && hasReceipt(receipts.broadcastA2aReputationAnnounce)
 );
+const latestAanTvGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceiptOrReadResult(receipts.aanTvCoverageQueue) && hasReceipt(receipts.coreAanTvIngest) && hasReceipt(receipts.broadcastAanTvAnnounce)
+);
+const latestZeeastCasinoGrowth = latestGrowthReceiptsMatching(
+  growthReceipts,
+  (receipts) => hasReceiptOrReadResult(receipts.zeeastCasinoConfig) && hasReceipt(receipts.coreZeeastCasinoIngest) && hasReceipt(receipts.broadcastZeeastCasinoAnnounce)
+);
 const varaBridge = varaBridgeReceipts.at(-1);
 const hy4Predict = hy4PredictReceipts.at(-1);
 const theBookDex = theBookDexReceipts.at(-1);
@@ -727,6 +791,14 @@ const verifiedInfiniteBounty = latestInfiniteBountyIntegration(
 const verifiedA2aReputation = latestA2aReputationIntegration(
   latestA2aReputationGrowth,
   previousVerifiedIntegration(previousSnapshot, "a2a-reputation", "latestA2aReputationIntegration")
+);
+const verifiedAanTv = latestAanTvIntegration(
+  latestAanTvGrowth,
+  previousVerifiedIntegration(previousSnapshot, "aan-tv", "latestAanTvIntegration")
+);
+const verifiedZeeastCasino = latestZeeastCasinoIntegration(
+  latestZeeastCasinoGrowth,
+  previousVerifiedIntegration(previousSnapshot, "zeeast-casino-v3", "latestZeeastCasinoIntegration")
 );
 console.log("Reading Vara Agent Network indexer");
 const ecosystemIndex = await readEcosystemIndex();
@@ -786,7 +858,15 @@ const currentActivity = [
   txActivity("IntegrationPact", growth.broadcastInfiniteBountyAnnounce, "Growth loop: Broadcast announced Infinite Bounty context."),
   txActivity("OutgoingCall", growth.a2aReputationStatus, "Growth loop: A2A Radar read A2A Reputation oracle status."),
   txActivity("DemandRequest", growth.coreA2aReputationIngest, "Growth loop: Core ingested an A2A Reputation signal."),
-  txActivity("IntegrationPact", growth.broadcastA2aReputationAnnounce, "Growth loop: Broadcast announced A2A Reputation context.")
+  txActivity("IntegrationPact", growth.broadcastA2aReputationAnnounce, "Growth loop: Broadcast announced A2A Reputation context."),
+  txActivity("OutgoingCall", growth.aanTvCoverageQueue, "Growth loop: A2A Radar read AAN-TV coverage queue."),
+  txActivity("OutgoingCall", growth.aanTvDataTopCallers, "Growth loop: A2A Radar read AAN-TV Data top callers."),
+  txActivity("DemandRequest", growth.coreAanTvIngest, "Growth loop: Core ingested an AAN-TV analytics signal."),
+  txActivity("IntegrationPact", growth.broadcastAanTvAnnounce, "Growth loop: Broadcast announced AAN-TV context."),
+  txActivity("OutgoingCall", growth.zeeastCasinoJackpot, "Growth loop: A2A Radar read Zeeast Casino jackpot."),
+  txActivity("OutgoingCall", growth.zeeastCasinoTopScores, "Growth loop: A2A Radar read Zeeast Casino leaderboard."),
+  txActivity("DemandRequest", growth.coreZeeastCasinoIngest, "Growth loop: Core ingested a Zeeast Casino signal."),
+  txActivity("IntegrationPact", growth.broadcastZeeastCasinoAnnounce, "Growth loop: Broadcast announced Zeeast Casino context.")
 ].filter(Boolean);
 const activity = mergeByKey(currentActivity, previousSnapshot.activity, (item) => `${item.kind}:${item.source}`);
 
@@ -846,7 +926,9 @@ const externalIntegrations = mergeByKey(
     verifiedVaraPulse,
     verifiedAgentPulse,
     verifiedInfiniteBounty,
-    verifiedA2aReputation
+    verifiedA2aReputation,
+    verifiedAanTv,
+    verifiedZeeastCasino
   ].filter(Boolean),
   previousSnapshot.externalIntegrations,
   (item) => item.handle
@@ -924,7 +1006,18 @@ const snapshot = {
       growth.a2aReputationStatus,
       growth.a2aReputationLeaderboard,
       growth.coreA2aReputationIngest,
-      growth.broadcastA2aReputationAnnounce
+      growth.broadcastA2aReputationAnnounce,
+      growth.aanTvCoverageQueue,
+      growth.aanTvDataAppStats,
+      growth.aanTvDataTopCallers,
+      growth.coreAanTvIngest,
+      growth.broadcastAanTvAnnounce,
+      growth.zeeastCasinoConfig,
+      growth.zeeastCasinoJackpot,
+      growth.zeeastCasinoTopScores,
+      growth.zeeastCasinoCoreStats,
+      growth.coreZeeastCasinoIngest,
+      growth.broadcastZeeastCasinoAnnounce
     ]), Number(previousSnapshot.counts?.outgoingIntegrations ?? 0), externalIntegrations.length),
     incomingCallTargets: Number(counts?.[0] ?? 0)
   },
@@ -958,7 +1051,9 @@ const snapshot = {
     verifiedVaraPulse ? { from: "Core", to: "Broadcast", purpose: "varapulse_social_context", observedAtMs: Date.now() } : undefined,
     verifiedAgentPulse ? { from: "Core", to: "Broadcast", purpose: "agent_pulse_feed_context", observedAtMs: Date.now() } : undefined,
     verifiedInfiniteBounty ? { from: "Core", to: "Broadcast", purpose: "infinite_bounty_market_context", observedAtMs: Date.now() } : undefined,
-    verifiedA2aReputation ? { from: "Core", to: "Broadcast", purpose: "a2a_reputation_oracle_context", observedAtMs: Date.now() } : undefined
+    verifiedA2aReputation ? { from: "Core", to: "Broadcast", purpose: "a2a_reputation_oracle_context", observedAtMs: Date.now() } : undefined,
+    verifiedAanTv ? { from: "Core", to: "Broadcast", purpose: "aan_tv_analytics_context", observedAtMs: Date.now() } : undefined,
+    verifiedZeeastCasino ? { from: "Core", to: "Broadcast", purpose: "zeeast_casino_activity_context", observedAtMs: Date.now() } : undefined
   ].filter(Boolean),
   externalIntegrations,
   raw: {
@@ -976,6 +1071,8 @@ const snapshot = {
     latestAgentPulseIntegration: verifiedAgentPulse,
     latestInfiniteBountyIntegration: verifiedInfiniteBounty,
     latestA2aReputationIntegration: verifiedA2aReputation,
+    latestAanTvIntegration: verifiedAanTv,
+    latestZeeastCasinoIntegration: verifiedZeeastCasino,
     treasuryBackedCycles,
     treasuryBackedEconomicInteractions
   }
